@@ -1,0 +1,41 @@
+---
+A service that
+
+* responds to pings (check if alive)
+* Composes, then sends tweets on a schedule, maybe randomized.
+* Add to corpus. Probably via a fetch->compare to DB, on a schedule.
+* Change/set credentials -> posting as @laurelita_ebooks, for example
+
+API
+---
+
+ping -> Responds "pong"
+update -> Fetches tweets of the seed
+
+
+Plan
+----
+* Write the Markov text generator first, ensure that it can generate arbitrary
+  text for a single prefix length, under a character limit.
+
+* Add "decorators" things like:
+  * Canonicalization of capitalization in input (we want "today is" and "Today 
+    is" to map to the same entry).
+  * Randomization for odd capitalization on output. We'd like tweets to have 
+    a silly random quality, like "Today a better Day is For #him."
+  * Hashtagger -- maybe run a mostly-completed tweet through a Thesaurus, 
+    return entries to generate #PantsBurnLegWound type silly tweets.
+  Don't need all of them, maybe just the first since that's less a decoration
+  and more of an "as designed."
+
+* Twitter API stuff: try to fetch tweets, post them. Write the infrastructure
+  needed.
+
+* Write the binary to be a service: persistent Generators of text, scheduled
+  fetching of tweets comparing against a database of already fetched tweets.
+  Should all be deterministic: the same corpus should yield the same Generator
+  (though naturally, the text generated would be non-deterministic...)
+
+* "Launch"! Bugfixes, better features (more of the decorators, non-Twitter 
+  sources such as RSS), better "service" definition (e.g. replication, 
+  monitoring).
