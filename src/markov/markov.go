@@ -105,7 +105,7 @@ func (g Generator) AddSeeds(input string) {
             g.dataModel[prefix] = suffixList
         }
 
-        copy(words, words[1:])
+        words = words[1:]
     }
 }
 

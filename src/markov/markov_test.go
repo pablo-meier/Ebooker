@@ -24,22 +24,22 @@ var _ = gocheck.Suite(&MarkovSuite{})
 //   * The existence of appropriate suffixes for a number of the prefixes.
 //   * The correct frequency counts on suffixes.
 func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
-    fmt.Println("Entering!")
     gen := CreateGenerator(2, 140)
 
     // Test basic case, prefix length of 2, no tricky tokenization.
     c.Assert(gen.prefixLength, gocheck.Equals, 2)
     c.Assert(gen.charLimit, gocheck.Equals, 140)
 
-    fmt.Println("About to call AddSeeds!")
 
     gen.AddSeeds("Today is a great day to be me")
 
+    // Don't include "be me," as there's nothing following it and therefore not 
+    // useful
     expectedPrefixes := []string{"Today is", "is a", "a great", "great day",
-        "day to", "to be", "be me"}
+        "day to", "to be"}
 
     for i := 0; i < len(expectedPrefixes) ; i++ {
-        fmt.Println("Testing with %s", expectedPrefixes[i])
+        fmt.Println("Checking ", expectedPrefixes[i])
         assertHasPrefix(gen, expectedPrefixes[i], c)
     }
 
