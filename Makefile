@@ -1,11 +1,11 @@
-
+# Expects that this directory is in your GOPATH
 
 build:
 	[ -d bin ] || mkdir -p bin
-	go build -o bin/ebooker src/markov_consumer.go
+	go build markov
 
 test:
-	go test src/markov_consumer_test.go
+	go test markov
 
 clean:
 	rm -rf bin/*
