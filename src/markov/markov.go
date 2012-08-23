@@ -6,14 +6,14 @@ model.
 We first build a list of prefixes (sets of words that come up together, such as
 "hot dog" and "dog food"), and build a map to what word normally follows the
 prefix, weighted by frequency. To generate text, we select a prefix, use the
-frequency to determine probabilities, and with some random data we pick the
-most likely word to follow it. To repeat the process, we append the new word the
+frequency to determine probabilities, and with some random data we pick a
+plausible word to follow it. To repeat the process, we append the new word the
 prefix while removing the first, forming a new prefix. We do this until we
 create a never-before seen prefix (in which case the sentence ends) or we hit
 the character limit (this is meant to create tweets, after all).
 
 An alternative idea would be to store prefix tables of different lengths, e.g.
-prefix length of 3 words would only be a -maximum- prefix length, but we
+prefix length of 3 words would really be a -maximum- prefix length, but we
 generate prefix tables for prefixes of 1, 2, and 3 words. If we run into a
 3-word prefix that contains no match, we trim it to 2 words and look for
 prefixes there, else 1 word, etc. Later we would try to "gobble" words back up
@@ -28,8 +28,6 @@ Examples of awesome Markov Twitter bots:
 @RandomTedTalks, @kpich_ebooks, @MarkovBible
 */
 
-// TODO: Clean up names, pointers rather than values as desirable.
-
 package markov
 
 import (
@@ -42,24 +40,24 @@ import (
 // suffixes.
 type Suffix struct {
     hits int
-    suffix string
+    str string
 }
 
 type SuffixList struct {
-    suffixes []Suffix
+    slice []*Suffix
     total int
 }
 
 // MarkovMap is the map that attaches prefixes to suffixes.
-type MarkovMap map[string]SuffixList
+type MarkovMap map[string]*SuffixList
 
 // Generators gives us all we need to build a fresh data model to generate 
 // from: the MarkovMap for the actual data, as well as the parametrized 
 // constraints on the text generation.
 type Generator struct {
-    prefixLength int
+    prefixLen int
     charLimit int
-    dataModel MarkovMap
+    data MarkovMap
 }
 
 
@@ -70,8 +68,8 @@ func CreateGenerator(prefixLen int, charLimit int) *Generator {
     return &Generator{ prefixLen, charLimit, markov }
 }
 
-func createNewSuffix(str string) Suffix {
-    return Suffix{ 1, str }
+func createNewSuffix(str string) *Suffix {
+    return &Suffix{ 1, str }
 }
 
 
@@ -83,26 +81,26 @@ func createNewSuffix(str string) Suffix {
 func (g Generator) AddSeeds(input string) {
     words := tokenize(input)
 
-    for len(words) > g.prefixLength {
-        prefix := strings.Join(words[0:g.prefixLength], " ")
+    for len(words) > g.prefixLen {
+        prefix := strings.Join(words[0:g.prefixLen], " ")
 
-        if suffixList, exists := g.dataModel[prefix]; exists {
-            str := words[g.prefixLength]
+        if suffixList, exists := g.data[prefix]; exists {
+            str := words[g.prefixLen]
             if suffix, member := hasSuffix(suffixList, str); member {
                 suffix.hits++
             } else {
                 suffix = createNewSuffix(str)
-                suffixList.suffixes = append(suffixList.suffixes, suffix)
+                suffixList.slice = append(suffixList.slice, suffix)
             }
             suffixList.total++
         } else {
-            str := words[g.prefixLength]
+            str := words[g.prefixLen]
             suffix := createNewSuffix(str)
-            suffixSlice := make([]Suffix, 3)
+            suffixSlice := make([]*Suffix, 0)
             suffixSlice = append(suffixSlice, suffix)
-            suffixList := SuffixList{ suffixSlice, 1 }
+            suffixList := &SuffixList{ suffixSlice, 1 }
 
-            g.dataModel[prefix] = suffixList
+            g.data[prefix] = suffixList
         }
 
         words = words[1:]
@@ -123,11 +121,11 @@ func tokenize(input string) []string {
 // hasSuffix searches a SuffixList for one that contains the string, and 
 // returns the suffix (if applicable) and a boolean describing whether or not 
 // we found it.
-func hasSuffix(list SuffixList, lookFor string) (Suffix, bool) {
-    slice := list.suffixes
+func hasSuffix(suffixlist *SuffixList, lookFor string) (*Suffix, bool) {
+    slice := suffixlist.slice
     for i := 0; i < len(slice); i++ {
         curr := slice[i]
-        if curr.suffix == lookFor {
+        if curr.str == lookFor {
             return curr, true
         }
     }
@@ -147,4 +145,17 @@ func (g Generator) GenerateText() string {
     //     N -= frequency
     return ""
 }
+
+
+
+// For testing.
+func (s SuffixList) GetSuffix(lookFor string) (*Suffix, bool) {
+    for i := 0; i < len(s.slice); i++ {
+        if s.slice[i].str == lookFor {
+            return s.slice[i], true
+        }
+    }
+    return createNewSuffix(""), false
+}
+
 
