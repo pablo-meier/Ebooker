@@ -11,6 +11,8 @@ API
 
 ping -> Responds "pong"
 update -> Fetches tweets of the seed
+stdout -> creates tweet, prints to stdout
+schedule -> alter the tweet schedule.
 
 
 Plan

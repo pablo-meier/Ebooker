@@ -2,7 +2,7 @@
 
 build:
 	[ -d bin ] || mkdir -p bin
-	go build markov
+	go build -o bin/ebooker 
 
 test:
 	go test markov

@@ -31,8 +31,12 @@ Examples of awesome Markov Twitter bots:
 package markov
 
 import (
+    "fmt"
     "strings"
+    "math/rand"
 )
+
+const DEBUG = true;
 
 // Suffix and SuffixList contain what is necessary to calculate the next block 
 // of text from a prefix, which includes the frequency and string content of 
@@ -136,17 +140,74 @@ func hasSuffix(suffixlist *SuffixList, lookFor string) (*Suffix, bool) {
 // Generates text from the given generator. It stops when the character limit
 // has run out, or it encounters a prefix it has no suffixes for.
 func (g Generator) GenerateText() string {
-    // from a prefix, select it's SuffixList
-    // Generate a random number N between 1-SuffixList.total
-    // iterate through the slice of suffixes. For each:
-    //   if N < frequency
-    //     select that suffix text
-    //   else
-    //     N -= frequency
-    return ""
+    return g.GenerateFromPrefix(g.randomPrefix())
 }
 
+// We expose this version primarily for testing.
+func (g Generator) GenerateFromPrefix(prefix string) string {
 
+    result := []string{ prefix }
+    charLimit := g.charLimit
+
+    // gotchas: what if we generate a prefix that isn't in the map?
+    // proper termination conditions.
+    for ;; {
+        //debug("Entering popNextWord -- prefix is", prefix, "and charLimit is", charLimit)
+        word, shouldTerminate, newPrefix, newCharLimit := g.PopNextWord(prefix, charLimit)
+        prefix = newPrefix
+        charLimit = newCharLimit
+
+        //debug("returned! word is", word, "shouldTerminate is", shouldTerminate)
+        //debug("newPrefix is", newPrefix, "newCharLimit is", newCharLimit)
+        if shouldTerminate {
+            break;
+        } else {
+            result = append(result, word)
+            //debug("result will now be", strings.Join(result, " "))
+        }
+    }
+
+    return strings.Join(result, " ")
+}
+
+func (g Generator) PopNextWord(prefix string, limit int) (string, bool, string, int) {
+    suffixlist, exists := g.data[prefix]
+
+    if exists {
+        index := rand.Intn(suffixlist.total) + 1
+        //debug("Random index is", index)
+        slice := suffixlist.slice
+        for i := 0; i < len(slice); i++ {
+            //debug("Testing if", index, "is <=", slice[i].hits)
+            if index <= slice[i].hits {
+                candidate := slice[i].str
+                //debug("It is! Candidate is", candidate)
+                if addsTo := len(candidate) + 1; addsTo <= limit {
+                    shifted := append(strings.Split(prefix, " ")[1:], candidate)
+                    newPrefix := strings.Join(shifted, " ")
+                    newLimit := limit - addsTo
+                    return candidate, false, newPrefix, newLimit
+                }
+            }
+            //debug("moving on...")
+            index -= slice[i].hits
+        }
+    }
+    return "", true, "", 0
+}
+
+func (g Generator) randomPrefix() string {
+    index := rand.Intn(len(g.data))
+    count := 0
+    for k, _ := range g.data {
+        if count == index {
+            return k
+        }
+        count++
+    }
+    // Shouldn't ever get here! Satisfy the compiler tho
+    return ""
+}
 
 // For testing.
 func (s SuffixList) GetSuffix(lookFor string) (*Suffix, bool) {
@@ -158,4 +219,9 @@ func (s SuffixList) GetSuffix(lookFor string) (*Suffix, bool) {
     return createNewSuffix(""), false
 }
 
+func debug(str string) {
+    if (DEBUG) {
+        fmt.Println(str)
+    }
+}
 
