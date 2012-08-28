@@ -5,7 +5,7 @@ build:
 	go build -o bin/ebooker 
 
 test:
-	go test markov
+	go test ebooker
 
 clean:
 	rm -rf bin/*

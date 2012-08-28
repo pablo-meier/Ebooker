@@ -3,23 +3,28 @@
 package main
 
 import (
+    "ebooker"
     "bufio"
     "fmt"
     "io"
     "os"
-    "markov"
+    "flag"
 )
 
 func main() {
-    filename := "laurelita-sample.txt"
+    filename := flag.String("file", "laurelita-sample.txt",
+        "file containing corpus texts, seperated by line")
+    prefixLen := flag.Int("prefixLength", 1, "length of prefix")
 
-    file, err := os.Open(filename)
+    flag.Parse()
+
+    file, err := os.Open(*filename)
     if err != nil { panic(err) }
     defer file.Close()
 
     reader := bufio.NewReader(file)
 
-    gen := markov.CreateGenerator(1, 140)
+    gen := ebooker.CreateGenerator(*prefixLen, 140)
     for {
         str, err := reader.ReadString(0x0A) // 0x0A == '\n'
         if err == io.EOF {
@@ -33,4 +38,7 @@ func main() {
     }
 
     fmt.Println(gen.GenerateText())
+
+    fetcher := ebooker.CreateTweetFetcher("laurelita")
+    fetcher.GetUserTimeline()
 }
