@@ -1,3 +1,7 @@
+- add a second map of prefix -> representations to Generator (markov, also tests)
+- start DB backend stuff for sqlite, look into GAE datastore.
+- GAE for server
+
 ---
 A service that
 
@@ -17,8 +21,11 @@ schedule -> alter the tweet schedule.
 
 Plan
 ----
-* Write the Markov text generator first, ensure that it can generate arbitrary
-  text for a single prefix length, under a character limit.
+* Multi-store: have a "canonical" version of a string, with frequency-determined 
+  values for the representation of those strings. e.g. just like we have "it's
+  a shame", we'd like "It's a shame" to map to the same things, so we have the
+  canonical "its" that maps to the representations "It's" and "it's", 50% chance
+  of each.
 
 * Add "decorators" things like:
   * Canonicalization of capitalization in input (we want "today is" and "Today 
@@ -33,14 +40,29 @@ Plan
   Don't need all of them, maybe just the first since that's less a decoration
   and more of an "as designed."
 
+  - string_utils
+
 * Twitter API stuff: try to fetch tweets, post them. Write the infrastructure
   needed.
+
+  - Fetch tweets more reliably.
+  - Store to DB. SQLite? GAE store?
 
 * Write the binary to be a service: persistent Generators of text, scheduled
   fetching of tweets comparing against a database of already fetched tweets.
   Should all be deterministic: the same corpus should yield the same Generator
   (though naturally, the text generated would be non-deterministic...)
 
+  - net/http
+  - GAE
+
 * "Launch"! Bugfixes, better features (more of the decorators, non-Twitter 
   sources such as RSS), better "service" definition (e.g. replication, 
   monitoring). Host/generalize on GAE?
+
+Done
+----
+* Write the Markov text generator first, ensure that it can generate arbitrary
+  text for a single prefix length, under a character limit.
+
+
