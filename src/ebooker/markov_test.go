@@ -1,7 +1,9 @@
 package ebooker
 
 import (
+    "fmt"
 	"launchpad.net/gocheck"
+	"math"
 	"testing"
 )
 
@@ -40,13 +42,10 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 
 	gen.AddSeeds("Today is a great day to be me")
 
-	// Don't include "be me," as there's nothing following it and therefore not 
-	// useful/included
-	expectedPrefixes := []string{"Today is", "is a", "a great", "great day",
-		"day to", "to be"}
+	expectedPrefixes := []string{"today is", "is a", "a great", "great day", "day to", "to be"}
 
 	for i := 0; i < len(expectedPrefixes); i++ {
-		assertHasPrefix(gen, expectedPrefixes[i], c)
+		assertHasPrefix(gen.data, expectedPrefixes[i], c)
 	}
 
 	gen.AddSeeds("Today is a terrible day to be me")
@@ -54,9 +53,9 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 	gen.AddSeeds("Today is a terrible day to be me")
 	gen.AddSeeds("Today is never so beautiful as tomorrow")
 
-	// My kingdom for a tuple type so that I could for loop this, as above!!
-	suffixTests := []SuffixFreqTest{SuffixFreqTest{"Today is", "a", 4},
-		SuffixFreqTest{"Today is", "never", 1},
+	// My kingdom for a tuple literal type!!!
+	suffixTests := []SuffixFreqTest{SuffixFreqTest{"today is", "a", 4},
+		SuffixFreqTest{"today is", "never", 1},
 		SuffixFreqTest{"is a", "great", 1},
 		SuffixFreqTest{"is a", "terrible", 3},
 		SuffixFreqTest{"a great", "day", 1},
@@ -72,27 +71,40 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 
 	for i := 0; i < len(suffixTests); i++ {
 		triple := suffixTests[i]
-		assertSuffixFrequencyCount(gen, triple.prefix, triple.suffix, triple.count, c)
+		assertSuffixFrequencyCount(gen.data, triple.prefix, triple.suffix, triple.count, c)
 	}
 }
 
-func assertHasPrefix(gen *Generator, prefix string, c *gocheck.C) {
-	_, exists := gen.data[prefix]
-	c.Assert(exists, gocheck.Equals, true)
+// Similar to TestAddSeeds, we want to ensure that we can add multiple 
+// representations for the same canonical prefix, e.g. "Daddy says" ==
+// "daddy says" == "DADDY SAYS"
+func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
+	gen := CreateGenerator(2, 140)
+
+	gen.AddSeeds("I've NEVER BEEN so mad")
+	gen.AddSeeds("Ive never \"been\" so sad")
+	gen.AddSeeds("IVE NEVER KILLED A MAN STOP ASKING")
+	gen.AddSeeds("you have been so sad!!!")
+
+    assertHasPrefix(gen.data, "ive never", c)
+    assertHasPrefix(gen.reps, "ive", c)
+    assertHasPrefix(gen.reps, "never", c)
+    assertSuffixFrequencyCount(gen.data, "ive never", "been", 2, c)
+    assertSuffixFrequencyCount(gen.reps, "ive", "IVE", 1, c)
+    assertSuffixFrequencyCount(gen.reps, "ive", "I've", 1, c)
+    assertSuffixFrequencyCount(gen.reps, "ive", "Ive", 1, c)
+    assertSuffixFrequencyCount(gen.reps, "never", "never", 1, c)
+    assertSuffixFrequencyCount(gen.reps, "never", "NEVER", 2, c)
+
+    assertHasPrefix(gen.reps, "been", c)
+    assertHasPrefix(gen.reps, "so", c)
+    assertSuffixFrequencyCount(gen.data, "been so", "sad", 2, c)
+    assertSuffixFrequencyCount(gen.data, "been so", "mad", 1, c)
+    assertSuffixFrequencyCount(gen.reps, "mad", "mad", 1, c)
+    assertSuffixFrequencyCount(gen.reps, "sad", "sad!!!", 1, c)
+    assertSuffixFrequencyCount(gen.reps, "sad", "sad", 1, c)
 }
 
-func assertSuffixFrequencyCount(gen *Generator, prefix, suffixStr string, count int, c *gocheck.C) {
-	assertHasPrefix(gen, prefix, c)
-	suffix, exists := gen.data[prefix].GetSuffix(suffixStr)
-
-	c.Assert(exists, gocheck.Equals, true)
-
-	c.Assert(suffix.hits, gocheck.Equals, count)
-}
-
-func (s MarkovSuite) TestAddSeedsOtherPrefixLength(c *gocheck.C) {
-
-}
 
 // Much harder to test in that we require some level of randomness. 
 // Essentially, after we generate the appropriate data model, we'll run
@@ -113,13 +125,13 @@ func (s MarkovSuite) TestGenerateText(c *gocheck.C) {
 	gen := CreateGenerator(2, 140)
 	gen.AddSeeds("Today is a great day to be alive")
 
-	returnText := gen.GenerateFromPrefix("Today is")
+	returnText := gen.GenerateFromPrefix("today is")
 
 	c.Assert(returnText, gocheck.Equals, "Today is a great day to be alive")
 
 	gen.AddSeeds("Today is a terrible day to be baking")
 	gen.AddSeeds("Today is a terrible day to be smelling")
-	gen.AddSeeds("Today is a great day to be molting")
+	gen.AddSeeds("Today is a great day to be moulting")
 
 	tests := []GenFreqTest{GenFreqTest{"is a", "great", 0.5},
 		GenFreqTest{"a great", "day", 1.0},
@@ -138,12 +150,34 @@ func (s MarkovSuite) TestGenerateText(c *gocheck.C) {
 	}
 }
 
-func assertProperFrequencyGeneration(g *Generator, prefix string, suffix string, prob float64, c *gocheck.C) {
 
-	trials := 1000
+func assertHasPrefix(aMap CountedStringMap, prefix string, c *gocheck.C) {
+	_, exists := aMap[prefix]
+	if !exists {
+	    fmt.Printf("failure to find prefix \"%s\"", prefix)
+    }
+	c.Assert(exists, gocheck.Equals, true)
+}
+
+func assertSuffixFrequencyCount(aMap CountedStringMap, prefix, suffix string, count int, c *gocheck.C) {
+	assertHasPrefix(aMap, prefix, c)
+	countedStr, exists := aMap[prefix].GetSuffix(suffix)
+
+	c.Assert(exists, gocheck.Equals, true)
+
+	if count != countedStr.hits {
+	    fmt.Printf("expecting %d and got %d for '%s' -> '%s'", count, countedStr.hits, prefix, suffix)
+    }
+	c.Assert(countedStr.hits, gocheck.Equals, count)
+}
+
+
+func assertProperFrequencyGeneration(g *Generator, prefix, suffix string, prob float64, c *gocheck.C) {
+
+	trials := 5000
 	hits := 0
 
-	epsilon := float64(0.025)
+	epsilon := float64(0.075)
 
 	for i := 0; i < trials; i++ {
 		nextWord, shouldTerminate, _, _ := g.PopNextWord(prefix, 100)
@@ -153,7 +187,11 @@ func assertProperFrequencyGeneration(g *Generator, prefix string, suffix string,
 		}
 	}
 
-	success := ((float64(hits) / float64(trials)) - prob) < epsilon
+	success := math.Abs( ((float64(hits) / float64(trials)) - prob) ) < epsilon
+
+	if !success {
+        fmt.Printf("%s -> %s had probability %f, expected %f\n", prefix, suffix, float64(hits) / float64(trials), prob)
+    }
 
 	c.Assert(success, gocheck.Equals, true)
 }

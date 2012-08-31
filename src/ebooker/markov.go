@@ -12,12 +12,19 @@ prefix while removing the first, forming a new prefix. We do this until we
 create a never-before seen prefix (in which case the sentence ends) or we hit
 the character limit (this is meant to create tweets, after all).
 
-An alternative idea would be to store prefix tables of different lengths, e.g.
-prefix length of 3 words would really be a -maximum- prefix length, but we
-generate prefix tables for prefixes of 1, 2, and 3 words. If we run into a
-3-word prefix that contains no match, we trim it to 2 words and look for
-prefixes there, else 1 word, etc. Later we would try to "gobble" words back up
-to a 3 word prefix.
+Further work may be in randomizing or otherwise diversifying the end 
+conditions on the text generation, such as occassionally deciding to start 
+over.
+
+Note that we have to probabilistic maps: one for prefixes to suffices (as 
+"hot dog food", above) and another for the -representation- of each word of
+text. E.g., we don't want the words "Hot Dog Food" and "hot dog food" to be
+treated as seperate for capitalization, or "Hot Dog, fooD!". We don't want to
+lose the data or character of the odd capitalizations or punctuations, so we
+also record all the oddities and select probabilistically from them as well.
+
+Note that for tweets, it's unlikely we'll use any prefix length greater than
+1, but it's useful to have in case we'd like to generate a larger output.
 
 Note there is a great codewalk of this algo on the Go website
 (http://golang.org/doc/codewalk/markov/), but I'm only taking the basic algo and
@@ -42,18 +49,17 @@ const DEBUG = true
 // of text from a prefix, which includes the frequency and string content of 
 // of each particular suffix, as well as the the total frequency of all
 // suffixes.
-type Suffix struct {
+type CountedString struct {
 	hits int
 	str  string
 }
 
-type SuffixList struct {
-	slice []*Suffix
+type CountedStringList struct {
+	slice []*CountedString
 	total int
 }
 
-// MarkovMap is the map that attaches prefixes to suffixes.
-type MarkovMap map[string]*SuffixList
+type CountedStringMap map[string]*CountedStringList
 
 // Generators gives us all we need to build a fresh data model to generate 
 // from: the MarkovMap for the actual data, as well as the parametrized 
@@ -61,52 +67,60 @@ type MarkovMap map[string]*SuffixList
 type Generator struct {
 	prefixLen int
 	charLimit int
-	data      MarkovMap
+	data      CountedStringMap  // suffix map, everything canonical
+	reps      CountedStringMap  // representation map
 }
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 
 // use.
 func CreateGenerator(prefixLen int, charLimit int) *Generator {
-	markov := make(MarkovMap)
-	return &Generator{prefixLen, charLimit, markov}
+	markov := make(CountedStringMap)
+    reps := make(CountedStringMap)
+	return &Generator{prefixLen, charLimit, markov, reps}
 }
 
-func createNewSuffix(str string) *Suffix {
-	return &Suffix{1, str}
+func createCountedString(str string) *CountedString{
+	return &CountedString{1, str}
 }
 
 // AddSeeds takes in a string, breaks it into prefixes, and adds it to the 
 // data model. Note that the data model isn't ready to use at this point,
 // since we need to use the frequencies to calculate the probabilities.
+func (g *Generator) AddSeeds(input string) {
+	raw := tokenize(StripReply(input))
 
-// TODO NAMES, REFACTOR BLAHBLAHBLAH
-func (g Generator) AddSeeds(input string) {
-	words := tokenize(input)
+	var canonical []string
+    for i :=0; i < len(raw); i++ {
+        canonical = append(canonical, Canonicalize(raw[i]))
+        AddToMap(canonical[i], raw[i], g.reps)
+    }
 
-	for len(words) > g.prefixLen {
-		prefix := strings.Join(words[0:g.prefixLen], " ")
-
-		if suffixList, exists := g.data[prefix]; exists {
-			str := words[g.prefixLen]
-			if suffix, member := hasSuffix(suffixList, str); member {
-				suffix.hits++
-			} else {
-				suffix = createNewSuffix(str)
-				suffixList.slice = append(suffixList.slice, suffix)
-			}
-			suffixList.total++
-		} else {
-			str := words[g.prefixLen]
-			suffix := createNewSuffix(str)
-			suffixSlice := make([]*Suffix, 0)
-			suffixSlice = append(suffixSlice, suffix)
-			suffixList := &SuffixList{suffixSlice, 1}
-
-			g.data[prefix] = suffixList
-		}
-
-		words = words[1:]
+	for len(canonical) > g.prefixLen {
+		prefix := strings.Join(canonical[0:g.prefixLen], " ")
+		AddToMap(prefix, canonical[g.prefixLen], g.data)
+		canonical = canonical[1:]
+        raw = raw[1:]
 	}
+}
+
+func AddToMap(prefix, toAdd string, aMap CountedStringMap) {
+
+    if csList, exists := aMap[prefix]; exists {
+        if countedStr, member := csList.hasCountedString(toAdd); member {
+            countedStr.hits++
+        } else {
+            countedStr = createCountedString(toAdd)
+            csList.slice = append(csList.slice, countedStr)
+        }
+        csList.total++
+    } else {
+        countedStr := createCountedString(toAdd)
+        countedStrSlice := make([]*CountedString, 0)
+        countedStrSlice = append(countedStrSlice, countedStr)
+        csList := &CountedStringList{countedStrSlice, 1}
+
+        aMap[prefix] = csList
+    }
 }
 
 // tokenize splits the input string into "words" we use as prefixes and 
@@ -118,11 +132,11 @@ func tokenize(input string) []string {
 	return strings.Split(input, " ")
 }
 
-// hasSuffix searches a SuffixList for one that contains the string, and 
+// hasCountedString searches a CountedStringList for one that contains the string, and 
 // returns the suffix (if applicable) and a boolean describing whether or not 
 // we found it.
-func hasSuffix(suffixlist *SuffixList, lookFor string) (*Suffix, bool) {
-	slice := suffixlist.slice
+func (l CountedStringList) hasCountedString(lookFor string) (*CountedString, bool) {
+	slice := l.slice
 	for i := 0; i < len(slice); i++ {
 		curr := slice[i]
 		if curr.str == lookFor {
@@ -130,20 +144,28 @@ func hasSuffix(suffixlist *SuffixList, lookFor string) (*Suffix, bool) {
 		}
 	}
 
-	return createNewSuffix(""), false
+	return createCountedString(""), false
 }
 
 // Generates text from the given generator. It stops when the character limit
 // has run out, or it encounters a prefix it has no suffixes for.
-func (g Generator) GenerateText() string {
+func (g *Generator) GenerateText() string {
 	return g.GenerateFromPrefix(g.randomPrefix())
 }
 
 // We expose this version primarily for testing.
-func (g Generator) GenerateFromPrefix(prefix string) string {
+func (g *Generator) GenerateFromPrefix(prefix string) string {
 
-	result := []string{prefix}
+    // can break if your prefix's rep is longer than the charLimit, should generalize
+    split := strings.Split(prefix, " ")
+    var result []string
 	charLimit := g.charLimit
+    for i := 0; i < len(split); i++ {
+        rep := g.reps[split[i]].DrawProbabilistically()
+        charLimit -= len(rep)
+        result = append(result, rep)
+    }
+
 
 	// gotchas: what if we generate a prefix that isn't in the map?
 	// proper termination conditions.
@@ -166,33 +188,43 @@ func (g Generator) GenerateFromPrefix(prefix string) string {
 	return strings.Join(result, " ")
 }
 
-func (g Generator) PopNextWord(prefix string, limit int) (string, bool, string, int) {
-	suffixlist, exists := g.data[prefix]
+func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string, int) {
 
-	if exists {
-		index := rand.Intn(suffixlist.total) + 1
-		//debug("Random index is", index)
-		slice := suffixlist.slice
-		for i := 0; i < len(slice); i++ {
-			//debug("Testing if", index, "is <=", slice[i].hits)
-			if index <= slice[i].hits {
-				candidate := slice[i].str
-				//debug("It is! Candidate is", candidate)
-				if addsTo := len(candidate) + 1; addsTo <= limit {
-					shifted := append(strings.Split(prefix, " ")[1:], candidate)
-					newPrefix := strings.Join(shifted, " ")
-					newLimit := limit - addsTo
-					return candidate, false, newPrefix, newLimit
-				}
-			}
-			//debug("moving on...")
-			index -= slice[i].hits
-		}
-	}
+	csList, exists := g.data[prefix]
+
+    if !exists {
+        // csList = g.data[g.randomPrefix()] //continue path
+	    return "", true, "", 0  // terminate path
+    }
+    successor := csList.DrawProbabilistically()
+    rep := g.reps[successor].DrawProbabilistically()
+    addsTo := len(rep) + 1
+
+    if addsTo <= limit {
+        shifted := append(strings.Split(prefix, " ")[1:], rep)
+        newPrefix := strings.Join(shifted, " ")
+        newLimit := limit - addsTo
+        return rep, false, newPrefix, newLimit
+    }
 	return "", true, "", 0
 }
 
-func (g Generator) randomPrefix() string {
+
+func (cs CountedStringList) DrawProbabilistically() string {
+    index := rand.Intn(cs.total) + 1
+    //debug("Random index is", index)
+    for i := 0; i < len(cs.slice); i++ {
+        //debug("Testing if", index, "is <=", slice[i].hits)
+        if index <= cs.slice[i].hits {
+            return cs.slice[i].str
+        }
+        //debug("moving on...")
+        index -= cs.slice[i].hits
+    }
+    return ""
+}
+
+func (g *Generator) randomPrefix() string {
 	index := rand.Intn(len(g.data))
 	count := 0
 	for k, _ := range g.data {
@@ -206,13 +238,13 @@ func (g Generator) randomPrefix() string {
 }
 
 // For testing.
-func (s SuffixList) GetSuffix(lookFor string) (*Suffix, bool) {
+func (s *CountedStringList) GetSuffix(lookFor string) (*CountedString, bool) {
 	for i := 0; i < len(s.slice); i++ {
 		if s.slice[i].str == lookFor {
 			return s.slice[i], true
 		}
 	}
-	return createNewSuffix(""), false
+	return createCountedString(""), false
 }
 
 func debug(str string) {
