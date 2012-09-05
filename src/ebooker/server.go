@@ -38,10 +38,18 @@ func populateData(r *http.Request) PageDisplay {
     // fetch Generator from datastore
     gen := fetchGenerator(c)
 
-    // Run a tweetfetcher update
-    tweets := GetTimelineFromRequest(c, "laurelita")
+    // get datastore tweets
+    oldTweets := getDatastoreTweets(c)
 
-    //   Compare with datastore, insert new values to datastore and Generator
+    var tweets []TweetData
+    if len(oldTweets) == 0 {
+        tweets = DeepDive(c, "laurelita")
+    } else {
+        freshId := oldTweets[0].Id
+        tweets = GetTimelineFromRequest(c, "laurelita", freshId)
+    }
+
+    // Insert new values to datastore and Generator
     insertFreshTweets(tweets, gen, c)
 
     // Generate some faux tweets
@@ -75,10 +83,22 @@ func fetchGenerator(c appengine.Context) *Generator {
 // insertFreshTweets takes the array of tweets just received, finds all that
 // aren't present in the data store, and adds them to the Generator and datastore.
 // We then update the generator in the datastore.
-func insertFreshTweets(newTweets []TweetData, gen *Generator, c appengine.Context) {
+func insertFreshTweets(fresh []TweetData, gen *Generator, c appengine.Context) {
+    tweetkey := datastore.NewKey(c, "TweetData", "laurelita", 0, nil)
+    genkey := datastore.NewKey(c, "Generator", "laurelita_ebook", 0, nil)
+
+    if len(fresh) > 0 {
+        for i := range fresh {
+            gen.AddSeeds(fresh[i].Text)
+            datastore.Put(c, tweetkey, &fresh[i])
+        }
+        datastore.Put(c, genkey, &gen)
+    }
+}
+
+func getDatastoreTweets(c appengine.Context) []TweetData {
     twitterUser := "laurelita"
     q := datastore.NewQuery("TweetData").Filter("Screen_name =", twitterUser).Order("-Id")
-    key := datastore.NewKey(c, "TweetData", twitterUser, 0, nil)
 
     var oldTweets []TweetData
     for t := q.Run(c); ; {
@@ -89,21 +109,13 @@ func insertFreshTweets(newTweets []TweetData, gen *Generator, c appengine.Contex
         }
         if err != nil {
             log.Fatal("error!", err)
-            return
+            return []TweetData{}
         }
         oldTweets = append(oldTweets, tData)
     }
-
-    fresh := getFreshTweets(oldTweets, newTweets)
-
-    if len(fresh) > 0 {
-        for i := range fresh {
-            gen.AddSeeds(fresh[i].Text)
-            datastore.Put(c, key, &fresh[i])
-        }
-        datastore.Put(c, key, &gen)
-    }
+    return oldTweets
 }
+
 
 // getFreshTweets returns the set difference between the fetched tweets from the 
 // datastore and the tweets extracted from the Twitter API. TODO make this not 
@@ -131,7 +143,7 @@ func getDummyData() PageDisplay {
         TweetData {2010203912831, "good job brain, adding an outfit last worn in December to my chai to the slight blustery weather. #prettywrongtho", "laurelita" } }
 
     nonsense := []string{ "false, false" , "falser!" }
-    laurelita_ebooks := Account{ "laurelita_ebooks", "laurelita", time.Now(), len(tweets), tweets, nonsense }
+    laurelita_ebooks := Account{ "laurelita_ebook", "laurelita", time.Now(), len(tweets), tweets, nonsense }
     var accounts []Account
     accounts = append(accounts, laurelita_ebooks)
 

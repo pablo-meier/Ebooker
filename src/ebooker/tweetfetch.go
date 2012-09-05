@@ -4,18 +4,16 @@ package ebooker
 
 import (
     "encoding/json"
-    "net/http"
-    "log"
-    "io/ioutil"
     "fmt"
+    "log"
+    "net/http"
+    "io/ioutil"
+    "strings"
+
     "appengine"
     "appengine/urlfetch"
 )
 
-
-type TweetFetcher struct {
-    user string
-}
 
 type TweetData struct {
     Id uint64
@@ -23,16 +21,69 @@ type TweetData struct {
     Screen_name string
 }
 
-func CreateTweetFetcher(user string) *TweetFetcher {
-    return &TweetFetcher{user}
-}
 
-func GetTimelineFromRequest(c appengine.Context, username string) []TweetData {
+const urlRequestBase = "http://api.twitter.com/1/statuses/user_timeline.json"
+const screenNameParam = "screen_name=%s"
+const countParam = "count=50"
+const includeRtsParam = "include_rts=false"
+const sinceIdParam = "since_id=%d"
+const maxIdParam = "max_id=%d"
+
+var params = strings.Join([]string{ screenNameParam, countParam, includeRtsParam }, "&")
+var baseQuery = strings.Join([]string{ urlRequestBase, params}, "?")
+
+// DeepDive is for new accounts, of if you're the kind of person who runs
+// 'make clean.' We take as much from the user's public-facing Twitter API
+// as we can by recursively calling with the max_id. See:
+//
+// https://dev.twitter.com/docs/working-with-timelines
+func DeepDive(c appengine.Context, username string) []TweetData {
+    fmt.Println("Doing a deep dive!")
     client := urlfetch.Client(c)
-    count := 100
+    queryStr := fmt.Sprintf(baseQuery, username)
 
-    fetchStr := fmt.Sprintf("http://api.twitter.com/1/statuses/user_timeline.json?screen_name=%s&count=%d", username, count)
-    resp, err := client.Get(fetchStr)
+    tweets := getTweetsFromClient(client, queryStr)
+
+    maxId := tweets[len(tweets) - 1].Id
+    for ;; {
+        newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
+        newQueryStr := fmt.Sprintf(newQueryBase, maxId)
+
+        olderTweets := getTweetsFromClient(client, newQueryStr)
+        if len(olderTweets) == 0 { break }
+
+        newOldestId := olderTweets[len(olderTweets) - 1].Id
+
+        if maxId == newOldestId {
+            break
+        } else {
+            maxId = newOldestId
+            tweets = appendSlices(tweets, olderTweets)
+            fmt.Println("Tweets have grown to", len(tweets))
+        }
+    }
+
+    return tweets
+}
+
+
+// GetRecentTimeline is the much more common use case: we fetch tweets from the
+// timeline, using since_id. This allows us to incrementally build our tweet
+// database.
+func GetTimelineFromRequest(c appengine.Context, username string, since uint64) []TweetData {
+    client := urlfetch.Client(c)
+    queryBase := strings.Join([]string{ baseQuery, sinceIdParam }, "&")
+    queryStr := fmt.Sprintf(queryBase, since)
+
+    tweets := getTweetsFromClient(client, queryStr)
+
+    return tweets
+}
+
+
+func getTweetsFromClient(client *http.Client, queryStr string) []TweetData {
+
+    resp, err := client.Get(queryStr)
 
     if err != nil { log.Fatal(err) }
 
@@ -49,26 +100,11 @@ func GetTimelineFromRequest(c appengine.Context, username string) []TweetData {
 }
 
 
-// TODO: Generalize this with GAE version above...
-func (t TweetFetcher) GetUserTimeline() []TweetData {
-    count := 100
-    fetchStr := fmt.Sprintf("http://api.twitter.com/1/statuses/user_timeline.json?screen_name=%s&count=%d", t.user, count)
-    resp, err := http.Get(fetchStr)
-    if err != nil { log.Fatal(err) }
-
-    body, err := ioutil.ReadAll(resp.Body)
-    defer resp.Body.Close()
-    if err != nil { log.Fatal(err) }
-
-    var tweets []TweetData;
-
-    err = json.Unmarshal(body, &tweets)
-    if err != nil { log.Fatal(err) }
-
-//    fmt.Println("Response is\n", resp)
-//    fmt.Println("body is\n", body)
-//    fmt.Println("Tweets as structs are\n%+v", tweets)
-
-    return tweets
+func appendSlices(slice1, slice2 []TweetData) []TweetData {
+   newslice := make([]TweetData, len(slice1) + len(slice2))
+   copy(newslice, slice1)
+   copy(newslice[len(slice1):], slice2)
+   return newslice
 }
+
 

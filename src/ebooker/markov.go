@@ -203,8 +203,12 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
 	csList, exists := g.Data[prefix]
 
     if !exists {
-        // csList = g.data[g.randomPrefix()] //continue path
-	    return "", true, "", 0  // terminate path
+        //TODO: Just pulled this out of my ass, probably better to think something for realz
+        if rand.Intn(11) > 4 {
+            csList = g.Data[g.randomPrefix()] //continue path
+        } else {
+	        return "", true, "", 0  // terminate path
+        }
     }
     successor := csList.DrawProbabilistically()
     rep := g.Reps[successor].DrawProbabilistically()
