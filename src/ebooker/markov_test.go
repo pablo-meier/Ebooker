@@ -34,7 +34,7 @@ type GenFreqTest struct {
 //   * The existence of appropriate suffixes for a number of the prefixes.
 //   * The correct frequency counts on suffixes.
 func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
-	gen := CreateGenerator(2, 140)
+	gen := CreateGenerator("laurelita_ebooks", 2, 140)
 
 	// Test basic case, prefix length of 2, no tricky tokenization.
 	c.Assert(gen.prefixLen, gocheck.Equals, 2)
@@ -79,7 +79,7 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 // representations for the same canonical prefix, e.g. "Daddy says" ==
 // "daddy says" == "DADDY SAYS"
 func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
-	gen := CreateGenerator(2, 140)
+	gen := CreateGenerator("laurelita_ebooks", 2, 140)
 
 	gen.AddSeeds("I've NEVER BEEN so mad")
 	gen.AddSeeds("Ive never \"been\" so sad")
@@ -122,7 +122,7 @@ func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
 //   of times.
 func (s MarkovSuite) TestGenerateText(c *gocheck.C) {
 	// Single sentence case.
-	gen := CreateGenerator(2, 140)
+	gen := CreateGenerator("laurelita_ebooks", 2, 140)
 	gen.AddSeeds("Today is a great day to be alive")
 
 	returnText := gen.GenerateFromPrefix("today is")

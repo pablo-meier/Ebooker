@@ -20,18 +20,18 @@ type TweetFetcher struct {
 type TweetData struct {
     Id uint64
     Text string
+    Screen_name string
 }
 
 func CreateTweetFetcher(user string) *TweetFetcher {
     return &TweetFetcher{user}
 }
 
-func (t TweetFetcher) GetTimelineFromRequest(r *http.Request) []TweetData {
-    c := appengine.NewContext(r)
+func GetTimelineFromRequest(c appengine.Context, username string) []TweetData {
     client := urlfetch.Client(c)
     count := 100
 
-    fetchStr := fmt.Sprintf("http://api.twitter.com/1/statuses/user_timeline.json?screen_name=%s&count=%d", t.user, count)
+    fetchStr := fmt.Sprintf("http://api.twitter.com/1/statuses/user_timeline.json?screen_name=%s&count=%d", username, count)
     resp, err := client.Get(fetchStr)
 
     if err != nil { log.Fatal(err) }
@@ -49,7 +49,7 @@ func (t TweetFetcher) GetTimelineFromRequest(r *http.Request) []TweetData {
 }
 
 
-// TODO logs shouldn't be fatal.
+// TODO: Generalize this with GAE version above...
 func (t TweetFetcher) GetUserTimeline() []TweetData {
     count := 100
     fetchStr := fmt.Sprintf("http://api.twitter.com/1/statuses/user_timeline.json?screen_name=%s&count=%d", t.user, count)

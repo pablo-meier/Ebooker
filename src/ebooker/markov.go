@@ -72,18 +72,19 @@ type CountedStringMap map[string]*CountedStringList
 // Generators gives us all we need to build a fresh data model to generate 
 // from.
 type Generator struct {
-	prefixLen int
-	charLimit int
-	data      CountedStringMap      // suffix map
-	reps      CountedStringMap      // representation map
+	Screen_name string
+	PrefixLen int
+	CharLimit int
+	Data      CountedStringMap      // suffix map
+	Reps      CountedStringMap      // representation map
 }
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 
 // use.
-func CreateGenerator(prefixLen int, charLimit int) *Generator {
+func CreateGenerator(name string, prefixLen int, charLimit int) *Generator {
 	markov := make(CountedStringMap)
     reps := make(CountedStringMap)
-	return &Generator{prefixLen, charLimit, markov, reps}
+	return &Generator{name, prefixLen, charLimit, markov, reps}
 }
 
 // Convenience method, already populating the first "hit" of the CountedString.
@@ -99,12 +100,12 @@ func (g *Generator) AddSeeds(input string) {
 	var canonical []string
     for i :=0; i < len(raw); i++ {
         canonical = append(canonical, Canonicalize(raw[i]))
-        AddToMap(canonical[i], raw[i], g.reps)
+        AddToMap(canonical[i], raw[i], g.Reps)
     }
 
-	for len(canonical) > g.prefixLen {
-		prefix := strings.Join(canonical[0:g.prefixLen], " ")
-		AddToMap(prefix, canonical[g.prefixLen], g.data)
+	for len(canonical) > g.PrefixLen {
+		prefix := strings.Join(canonical[0:g.PrefixLen], " ")
+		AddToMap(prefix, canonical[g.PrefixLen], g.Data)
 		canonical = canonical[1:]
 	}
 }
@@ -168,9 +169,9 @@ func (g *Generator) GenerateFromPrefix(prefix string) string {
     // can break if your prefix's rep is longer than the charLimit, should generalize
     split := strings.Split(prefix, " ")
     var result []string
-	charLimit := g.charLimit
+	charLimit := g.CharLimit
     for i := 0; i < len(split); i++ {
-        rep := g.reps[split[i]].DrawProbabilistically()
+        rep := g.Reps[split[i]].DrawProbabilistically()
         charLimit -= len(rep)
         result = append(result, rep)
     }
@@ -199,14 +200,14 @@ func (g *Generator) GenerateFromPrefix(prefix string) string {
 
 func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string, int) {
 
-	csList, exists := g.data[prefix]
+	csList, exists := g.Data[prefix]
 
     if !exists {
         // csList = g.data[g.randomPrefix()] //continue path
 	    return "", true, "", 0  // terminate path
     }
     successor := csList.DrawProbabilistically()
-    rep := g.reps[successor].DrawProbabilistically()
+    rep := g.Reps[successor].DrawProbabilistically()
     addsTo := len(rep) + 1
 
     if addsTo <= limit {
@@ -234,9 +235,9 @@ func (cs CountedStringList) DrawProbabilistically() string {
 }
 
 func (g *Generator) randomPrefix() string {
-	index := rand.Intn(len(g.data))
+	index := rand.Intn(len(g.Data))
 	count := 0
-	for k, _ := range g.data {
+	for k, _ := range g.Data {
 		if count == index {
 			return k
 		}
