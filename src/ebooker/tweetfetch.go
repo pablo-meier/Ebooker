@@ -8,6 +8,8 @@ import (
     "log"
     "io/ioutil"
     "fmt"
+    "appengine"
+    "appengine/urlfetch"
 )
 
 
@@ -24,12 +26,33 @@ func CreateTweetFetcher(user string) *TweetFetcher {
     return &TweetFetcher{user}
 }
 
+func (t TweetFetcher) GetTimelineFromRequest(r *http.Request) []TweetData {
+    c := appengine.NewContext(r)
+    client := urlfetch.Client(c)
+    count := 100
+
+    fetchStr := fmt.Sprintf("http://api.twitter.com/1/statuses/user_timeline.json?screen_name=%s&count=%d", t.user, count)
+    resp, err := client.Get(fetchStr)
+
+    if err != nil { log.Fatal(err) }
+
+    body, err := ioutil.ReadAll(resp.Body)
+    defer resp.Body.Close()
+    if err != nil { log.Fatal(err) }
+
+    var tweets []TweetData;
+
+    err = json.Unmarshal(body, &tweets)
+    if err != nil { log.Fatal(err) }
+
+    return tweets
+}
+
 
 // TODO logs shouldn't be fatal.
 func (t TweetFetcher) GetUserTimeline() []TweetData {
     count := 100
     fetchStr := fmt.Sprintf("http://api.twitter.com/1/statuses/user_timeline.json?screen_name=%s&count=%d", t.user, count)
-//    fmt.Println("Query URL is ", fetchStr, ", looking for ", t.user)
     resp, err := http.Get(fetchStr)
     if err != nil { log.Fatal(err) }
 
@@ -48,6 +71,4 @@ func (t TweetFetcher) GetUserTimeline() []TweetData {
 
     return tweets
 }
-
-
 

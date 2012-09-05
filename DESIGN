@@ -1,6 +1,8 @@
-- add a second map of prefix -> representations to Generator (markov, also tests)
-- start DB backend stuff for sqlite, look into GAE datastore.
-- GAE for server
+not tables, but something like it?
+
+twittername, tweet ID, text
+account_name, twittername, lastupdate, tweetslogged
+
 
 ---
 A service that

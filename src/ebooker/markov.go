@@ -14,25 +14,28 @@ the character limit (this is meant to create tweets, after all).
 
 Further work may be in randomizing or otherwise diversifying the end 
 conditions on the text generation, such as occassionally deciding to start 
-over.
+over, or taking the average tweet length of the user in question into 
+consideration.
 
-Note that we have to probabilistic maps: one for prefixes to suffices (as 
+Note that we have two probabilistic maps: one for prefixes to suffixes (as 
 "hot dog food", above) and another for the -representation- of each word of
-text. E.g., we don't want the words "Hot Dog Food" and "hot dog food" to be
-treated as seperate for capitalization, or "Hot Dog, fooD!". We don't want to
-lose the data or character of the odd capitalizations or punctuations, so we
-also record all the oddities and select probabilistically from them as well.
+text. E.g., we don't want the words "Hot Dog Food" and "hot dog food" and "Hot
+Dog! Food?" to be treated as seperate for their capitalization or punctuation. 
+We don't want to lose the data or character of the odd capitalizations or 
+punctuations, so we also record all the representations of what we call 
+"canonical" form of a word and select probabilistically from them as well.
 
 Note that for tweets, it's unlikely we'll use any prefix length greater than
-1, but it's useful to have in case we'd like to generate a larger output.
+1, but it's useful to have in case we'd like to generate a larger output, like
+michaelochurch screeds.
 
-Note there is a great codewalk of this algo on the Go website
+Note there is a great codewalk of a simple version of this algo on the Go website
 (http://golang.org/doc/codewalk/markov/), but I'm only taking the basic algo and
 supplying my own implementation, since it's more fun and gives me more insight
 into Go, and the problem at hand.
 
 Examples of awesome Markov Twitter bots: 
-@RandomTedTalks, @kpich_ebooks, @MarkovBible
+@RandomTedTalks, @kpich_ebooks, @markov_bible
 */
 
 package ebooker
@@ -45,30 +48,34 @@ import (
 
 const DEBUG = true
 
-// Suffix and SuffixList contain what is necessary to calculate the next block 
-// of text from a prefix, which includes the frequency and string content of 
-// of each particular suffix, as well as the the total frequency of all
-// suffixes.
+// Since both maps (the prefix -> suffix and canonical -> representation) 
+// operate about the same way, we abstract their representation into a notion
+// of CountedStrings, where the values of the map contain both the string we
+// care about and a count of how often it occurs.
 type CountedString struct {
 	hits int
 	str  string
 }
 
+// A CountedStringList is a list of all the CountedStrings for a given prefix, 
+// and a total number of times that prefix occurs (necessary, with the 
+// CountedString hits, for probability calculation).
 type CountedStringList struct {
 	slice []*CountedString
 	total int
 }
 
+// Map from a prefix in canonical form to CountedStringLists, where one will
+// move canonical prefixes to suffixes, and another to words -> representation.
 type CountedStringMap map[string]*CountedStringList
 
 // Generators gives us all we need to build a fresh data model to generate 
-// from: the MarkovMap for the actual data, as well as the parametrized 
-// constraints on the text generation.
+// from.
 type Generator struct {
 	prefixLen int
 	charLimit int
-	data      CountedStringMap  // suffix map, everything canonical
-	reps      CountedStringMap  // representation map
+	data      CountedStringMap      // suffix map
+	reps      CountedStringMap      // representation map
 }
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 
@@ -79,13 +86,13 @@ func CreateGenerator(prefixLen int, charLimit int) *Generator {
 	return &Generator{prefixLen, charLimit, markov, reps}
 }
 
+// Convenience method, already populating the first "hit" of the CountedString.
 func createCountedString(str string) *CountedString{
 	return &CountedString{1, str}
 }
 
 // AddSeeds takes in a string, breaks it into prefixes, and adds it to the 
-// data model. Note that the data model isn't ready to use at this point,
-// since we need to use the frequencies to calculate the probabilities.
+// data model. 
 func (g *Generator) AddSeeds(input string) {
 	raw := tokenize(StripReply(input))
 
@@ -99,10 +106,12 @@ func (g *Generator) AddSeeds(input string) {
 		prefix := strings.Join(canonical[0:g.prefixLen], " ")
 		AddToMap(prefix, canonical[g.prefixLen], g.data)
 		canonical = canonical[1:]
-        raw = raw[1:]
 	}
 }
 
+// Add to map checks if the key/value pair exists in the map. If not, we create
+// them, and if so, we either increment the counter on the value or initialize 
+// it if it didn't exist previously.
 func AddToMap(prefix, toAdd string, aMap CountedStringMap) {
 
     if csList, exists := aMap[prefix]; exists {
