@@ -73,10 +73,10 @@ type CountedStringMap map[string]*CountedStringList
 // from.
 type Generator struct {
 	Screen_name string
-	PrefixLen int
-	CharLimit int
-	Data      CountedStringMap      // suffix map
-	Reps      CountedStringMap      // representation map
+    PrefixLen int `datastore:",noindex"`
+	CharLimit int `datastore:",noindex"`
+	Data      CountedStringMap `datastore:",noindex"`     // suffix map
+	Reps      CountedStringMap `datastore:",noindex"`    // representation map
 }
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 

@@ -16,9 +16,9 @@ import (
 
 
 type TweetData struct {
-    Id uint64
-    Text string
-    Screen_name string
+    Id uint64 `datastore:",noindex" json:"id"`
+    Text string `datastore:",noindex" json:"text"`
+    Screen_name string `json:"screen_name"`
 }
 
 
@@ -44,24 +44,29 @@ func DeepDive(c appengine.Context, username string) []TweetData {
 
     tweets := getTweetsFromClient(client, queryStr)
 
-    maxId := tweets[len(tweets) - 1].Id
-    for ;; {
-        newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
-        newQueryStr := fmt.Sprintf(newQueryBase, maxId)
-
-        olderTweets := getTweetsFromClient(client, newQueryStr)
-        if len(olderTweets) == 0 { break }
-
-        newOldestId := olderTweets[len(olderTweets) - 1].Id
-
-        if maxId == newOldestId {
-            break
-        } else {
-            maxId = newOldestId
-            tweets = appendSlices(tweets, olderTweets)
-            fmt.Println("Tweets have grown to", len(tweets))
-        }
+    // HAX HAX HAX
+    for i := range tweets {
+        tweets[i].Screen_name = username
     }
+
+//    maxId := tweets[len(tweets) - 1].Id
+//    for ;; {
+//        newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
+//        newQueryStr := fmt.Sprintf(newQueryBase, maxId)
+//
+//        olderTweets := getTweetsFromClient(client, newQueryStr)
+//        if len(olderTweets) == 0 { break }
+//
+//        newOldestId := olderTweets[len(olderTweets) - 1].Id
+//
+//        if maxId == newOldestId {
+//            break
+//        } else {
+//            maxId = newOldestId
+//            tweets = appendSlices(tweets, olderTweets)
+//            fmt.Println("Tweets have grown to", len(tweets))
+//        }
+//    }
 
     return tweets
 }
