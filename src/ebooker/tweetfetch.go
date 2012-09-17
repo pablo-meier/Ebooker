@@ -16,7 +16,9 @@ import (
 
 
 type TweetData struct {
-    Id uint64 `datastore:",noindex" json:"id"`
+    // Storing the Id in an int64 rather than uint64 because datastore only 
+    // allows signed ints :(
+    Id int64 `json:"id"`
     Text string `datastore:",noindex" json:"text"`
     Screen_name string `json:"screen_name"`
 }
@@ -49,24 +51,24 @@ func DeepDive(c appengine.Context, username string) []TweetData {
         tweets[i].Screen_name = username
     }
 
-//    maxId := tweets[len(tweets) - 1].Id
-//    for ;; {
-//        newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
-//        newQueryStr := fmt.Sprintf(newQueryBase, maxId)
-//
-//        olderTweets := getTweetsFromClient(client, newQueryStr)
-//        if len(olderTweets) == 0 { break }
-//
-//        newOldestId := olderTweets[len(olderTweets) - 1].Id
-//
-//        if maxId == newOldestId {
-//            break
-//        } else {
-//            maxId = newOldestId
-//            tweets = appendSlices(tweets, olderTweets)
-//            fmt.Println("Tweets have grown to", len(tweets))
-//        }
-//    }
+    maxId := tweets[len(tweets) - 1].Id
+    for ;; {
+        newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
+        newQueryStr := fmt.Sprintf(newQueryBase, maxId)
+
+        olderTweets := getTweetsFromClient(client, newQueryStr)
+        if len(olderTweets) == 0 { break }
+
+        newOldestId := olderTweets[len(olderTweets) - 1].Id
+
+        if maxId == newOldestId {
+            break
+        } else {
+            maxId = newOldestId
+            tweets = appendSlices(tweets, olderTweets)
+            fmt.Println("Tweets have grown to", len(tweets))
+        }
+    }
 
     return tweets
 }
@@ -75,10 +77,10 @@ func DeepDive(c appengine.Context, username string) []TweetData {
 // GetRecentTimeline is the much more common use case: we fetch tweets from the
 // timeline, using since_id. This allows us to incrementally build our tweet
 // database.
-func GetTimelineFromRequest(c appengine.Context, username string, since uint64) []TweetData {
+func GetTimelineFromRequest(c appengine.Context, username string, latest *TweetData) []TweetData {
     client := urlfetch.Client(c)
     queryBase := strings.Join([]string{ baseQuery, sinceIdParam }, "&")
-    queryStr := fmt.Sprintf(queryBase, since)
+    queryStr := fmt.Sprintf(queryBase, latest.Screen_name, latest.Id)
 
     tweets := getTweetsFromClient(client, queryStr)
 

@@ -12,7 +12,6 @@ import (
     "net/http"
     "html/template"
     "time"
-    "log"
     "fmt"
 
     "appengine"
@@ -35,24 +34,28 @@ func populateData(r *http.Request) PageDisplay {
     // Get user data from datastore - accounts, wherefrom, etc.
     c := appengine.NewContext(r)
     debugText := ""
+    twitterUser := "SrPablo"
 
     // fetch Generator from datastore
     gen := fetchGenerator(c)
 
     // get datastore tweets
-    oldTweets := getDatastoreTweets(c)
+    oldTweets := getDatastoreTweets(c, twitterUser)
     fmt.Printf("datastore size is %d\n", len(oldTweets))
 
     var tweets []TweetData
     if len(oldTweets) == 0 {
-        tweets = DeepDive(c, "laurelita")
+        tweets = DeepDive(c, twitterUser)
     } else {
-        freshId := oldTweets[0].Id
-        tweets = GetTimelineFromRequest(c, "laurelita", freshId)
+        tweets = GetTimelineFromRequest(c, twitterUser, oldTweets[0])
     }
 
     // Insert new values to datastore and Generator
     insertFreshTweets(tweets, gen, c)
+
+    for i := range oldTweets {
+        gen.AddSeeds(oldTweets[i].Text)
+    }
 
     // Generate some faux tweets
     var nonsense []string
@@ -63,7 +66,6 @@ func populateData(r *http.Request) PageDisplay {
     // Populate the TweetDisplay
     //pageDisplay := PageDisplay{}
     pageDisplay := getDummyData()
-    pageDisplay.Accounts[0].TweetDisplay = tweets
     pageDisplay.Accounts[0].NonsenseTweets = nonsense
     pageDisplay.DebugText = debugText
     return pageDisplay
@@ -71,80 +73,50 @@ func populateData(r *http.Request) PageDisplay {
 
 
 // fetchGenerator finds the appropriate Generator to retrieve given the context.
+// Unfortunately, GAE can't store maps in the datastore, so we're pretty fucked
+// for persistent storage. In the meantime, we're hacking it with just recreating
+// it each time, since it's a fast operation.
 func fetchGenerator(c appengine.Context) *Generator {
-    key := datastore.NewKey(c, "Generator", "laurelita_ebooks", 0, nil)
-
-    var gen Generator
-    err := datastore.Get(c, key, &gen)
-    if err == datastore.ErrNoSuchEntity {
-        fmt.Printf("Generator not found, creating a new one\n")
-        gen = *(CreateGenerator("laurelita_ebooks", 1, 140))
-        _, err = datastore.Put(c, key, &gen)
-        fmt.Printf("error from Put on Generator is %v\n", err)
-    }
-    return &gen
+    gen := CreateGenerator("laurelita_ebooks", 1, 140)
+    return gen
 }
+
+
+// getDatastoreTweets retrieves the 10 most recent tweets "on record" for a 
+// twitter user.
+func getDatastoreTweets(c appengine.Context, twitterUser string) []*TweetData {
+    q := datastore.NewQuery("TweetData").Filter("Screen_name =", twitterUser).Order("-Id")
+
+    var oldTweets []*TweetData
+    if _, err := q.GetAll(c, &oldTweets); err != nil {
+        fmt.Printf("Getall had non-nil error! %v\n", err)
+    }
+
+    return oldTweets
+}
+
 
 // insertFreshTweets takes the array of tweets just received, finds all that
 // aren't present in the data store, and adds them to the Generator and 
 // datastore. We then update the generator in the datastore.
 func insertFreshTweets(fresh []TweetData, gen *Generator, c appengine.Context) {
-    fmt.Printf("inserting %d tweets to data store!", len(fresh))
-    tweetkey := datastore.NewIncompleteKey(c, "TweetData", nil)
-    genkey := datastore.NewIncompleteKey(c, "Generator", nil)
+    fmt.Printf("inserting %d tweets to data store!\n", len(fresh))
 
-    if len(fresh) > 0 {
-        for i := range fresh {
-            tweetData := fresh[i]
-            //fmt.Printf("Putting %v into datastore\n", tweetData)
-            gen.AddSeeds(tweetData.Text)
-            _, err := datastore.Put(c, tweetkey, &tweetData)
-            fmt.Printf("error from tweetput is %v\n", err)
+    for i := range fresh {
+        tweetData := fresh[i]
+        gen.AddSeeds(tweetData.Text)
+        key := datastore.NewIncompleteKey(c, "TweetData", nil)
+        _, err := datastore.Put(c, key, &tweetData)
+        if err != nil {
+            fmt.Println("error is: ", err)
         }
-        _, err := datastore.Put(c, genkey, &gen)
-        fmt.Printf("error from genput is %v\n", err)
     }
 }
-
-// getDatastoreTweets retrieves the 10 most recent tweets "on record" for a 
-// twitter user.
-func getDatastoreTweets(c appengine.Context) []TweetData {
-    twitterUser := "laurelita"
-    q := datastore.NewQuery("TweetData").Filter("Screen_name =", twitterUser).Order("-Id").Limit(10)
-
-    oldTweets := make([]TweetData, 0, 10)
-    fmt.Printf("length of uninitialized array is %d\n", len(oldTweets))
-
-    if _, err := q.GetAll(c, &oldTweets); err != nil {
-        fmt.Printf("Getall had non-nil error!")
-        log.Fatal("error!", err)
-    }
-//    for t := q.Run(c); ; {
-//        fmt.Printf("  entered, getting a tweet maybe?\n")
-//        var tData TweetData
-//        _, err := t.Next(&tData)
-//        if err == datastore.Done {
-//            break
-//        }
-//        if err != nil {
-//            log.Fatal("error!", err)
-//            return []TweetData{}
-//        }
-//        fmt.Println("    gots us a tweet!")
-//        oldTweets = append(oldTweets, tData)
-//    }
-    return oldTweets
-}
-
 
 func getDummyData() PageDisplay {
 
-    tweets := []TweetData{
-        TweetData {1929310283120, "#reasonstoloveSF: Castro theater Alfred Hitchcock festival #vertigo ❤", "laurelita" },
-        TweetData {2010203912831, "good job brain, adding an outfit last worn in December to my chai to the slight blustery weather. #prettywrongtho", "laurelita" } }
-
     nonsense := []string{ "false, false" , "falser!" }
-    laurelita_ebooks := Account{ "laurelita_ebook", "laurelita", time.Now(), len(tweets), tweets, nonsense }
+    laurelita_ebooks := Account{ "laurelita_ebook", "laurelita", time.Now(), nonsense }
     var accounts []Account
     accounts = append(accounts, laurelita_ebooks)
 
@@ -156,8 +128,6 @@ type Account struct {
     Name string
     BasedOff string
     LastUpdate time.Time
-    TotalTweets int
-    TweetDisplay []TweetData
     NonsenseTweets []string
 }
 
@@ -180,17 +150,7 @@ const templateStr = `
 <div class="bot-instance">
   <h2>{{.Name}}</h2>
 
-  <h3>Fetched Tweets</h3>
-  <p>Total tweets: {{.TotalTweets}}</p>
-  <table>
-    {{range .TweetDisplay}}
-    <tr>
-      <td>{{.Id}}</td><td>{{.Text}}</td>
-    </tr>
-    {{end}}
-  </table>
-
-  <h3>Accepted Tweets</h3>
+  <h3>Generated Tweets</h3>
   <ul>
     {{range .NonsenseTweets}}
     <li>{{.}}</li>

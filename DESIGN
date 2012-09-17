@@ -1,7 +1,30 @@
-not tables, but something like it?
+-- Critical
 
-twittername, tweet ID, text
-account_name, twittername, lastupdate, tweetslogged
+* Datastore bug.
+* User abstraction.
+* TESTS
+* REFACTORING
+* Prettification.
+* Improve the actual text generated.
+** Length of generated tweets: ensure that short ones aren't direct subsets?
+** Store "beginnings" as separate from other prefixes, rather than simply
+   picking a random one?
+** "Sweeps," a set of filters that you can apply to the text, 
+*** Capitalization.
+**** ALLCAPS
+**** all lowercase, better known as the "instagram user"
+**** Washington Post Style, Where Every Word is Capitalized
+**** Force a proper sentence structure.
+
+*** Hashtags
+**** coffee dadder#
+**** Random #Hashtagging of a word.
+**** Chuck Grassleying #CombineWordsIntoOneTag (note that you'd probably want to 
+     remove a word from whatever you contract together to make it as 
+     weird-as-hell as possible).
+
+-- Later
+* Multiple sources if desired (SrLaurelita)
 
 
 ---
