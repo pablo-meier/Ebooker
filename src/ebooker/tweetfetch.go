@@ -5,6 +5,7 @@ package ebooker
 import (
     "encoding/json"
     "fmt"
+    "html"
     "log"
     "net/http"
     "io/ioutil"
@@ -13,11 +14,8 @@ import (
 
 
 type TweetData struct {
-    // Storing the Id in an int64 rather than uint64 because datastore only 
-    // allows signed ints :(
-    Id int64 `json:"id"`
+    Id uint64 `json:"id"`
     Text string `json:"text"`
-    Screen_name string `json:"screen_name"`
 }
 
 
@@ -42,12 +40,8 @@ func DeepDive(username string) []TweetData {
 
     tweets := getTweetsFromClient(queryStr)
 
-    // HAX HAX HAX
-    for i := range tweets {
-        tweets[i].Screen_name = username
-    }
-
-    maxId := tweets[len(tweets) - 1].Id
+    // the "- 1" is because max_id is inclusive, and we already have it.
+    maxId := tweets[len(tweets) - 1].Id - 1
     for ;; {
         newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
         newQueryStr := fmt.Sprintf(newQueryBase, maxId)
@@ -75,7 +69,7 @@ func DeepDive(username string) []TweetData {
 // database.
 func GetTimelineFromRequest(username string, latest *TweetData) []TweetData {
     queryBase := strings.Join([]string{ baseQuery, sinceIdParam }, "&")
-    queryStr := fmt.Sprintf(queryBase, latest.Screen_name, latest.Id)
+    queryStr := fmt.Sprintf(queryBase, username, latest.Id)
 
     tweets := getTweetsFromClient(queryStr)
 
@@ -97,6 +91,10 @@ func getTweetsFromClient(queryStr string) []TweetData {
 
     err = json.Unmarshal(body, &tweets)
     if err != nil { log.Fatal(err) }
+
+    for _, tweet := range tweets {
+        tweet.Text = html.UnescapeString(tweet.Text)
+    }
 
     return tweets
 }

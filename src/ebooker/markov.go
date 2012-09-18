@@ -104,15 +104,15 @@ func (g *Generator) AddSeeds(input string) {
         AddToMap(canonical[i], raw[i], g.Reps)
     }
 
-    if len(canonical) >= g.PrefixLen {
-        firstPrefix := strings.Join(canonical[0:g.PrefixLen], " ")
-        g.Beginnings = append(g.Beginnings, firstPrefix)
-    }
-
+	first := true
 	for len(canonical) > g.PrefixLen {
 		prefix := strings.Join(canonical[0:g.PrefixLen], " ")
 		AddToMap(prefix, canonical[g.PrefixLen], g.Data)
 		canonical = canonical[1:]
+		if first {
+            g.Beginnings = append(g.Beginnings, prefix)
+            first = false
+		}
 	}
 }
 

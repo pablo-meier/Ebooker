@@ -1,23 +1,15 @@
--- Remove appengine
-* Find/create pluggable interfaces?
-** http/urlfetch
-** datastore/sqlite
-
-
 -- Critical
 
-* Datastore bug.
 * User abstraction.
 * TESTS
 * REFACTORING
 * LOGGING
-* Prettification.
+
 * Improve the actual text generated.
 ** Ensure correctness -- some ending conditions are very suspicious.
 ** Length of generated tweets: ensure that short ones aren't direct subsets?
    Artificially create longer ones?
-** Store "beginnings" as separate from other prefixes, rather than simply
-   picking a random one?
+
 ** "Sweeps," a set of filters that you can apply to the text, 
 *** Capitalization.
 **** ALLCAPS
@@ -33,6 +25,7 @@
      weird-as-hell as possible).
 
 -- Later
+* Repeat tweet bug (some tweets on the border get doubled)
 * Handle asyncronous fetches from Twitter, generation, e.g.
 ** Load page immediately, with no content.
 ** Websocket (or some such technology) to send tweets to the frontend, create new ones on command,

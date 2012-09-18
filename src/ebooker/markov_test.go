@@ -34,18 +34,18 @@ type GenFreqTest struct {
 //   * The existence of appropriate suffixes for a number of the prefixes.
 //   * The correct frequency counts on suffixes.
 func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
-	gen := CreateGenerator("laurelita_ebooks", 2, 140)
+	gen := CreateGenerator(2, 140)
 
 	// Test basic case, prefix length of 2, no tricky tokenization.
-	c.Assert(gen.prefixLen, gocheck.Equals, 2)
-	c.Assert(gen.charLimit, gocheck.Equals, 140)
+	c.Assert(gen.PrefixLen, gocheck.Equals, 2)
+	c.Assert(gen.CharLimit, gocheck.Equals, 140)
 
 	gen.AddSeeds("Today is a great day to be me")
 
 	expectedPrefixes := []string{"today is", "is a", "a great", "great day", "day to", "to be"}
 
 	for i := 0; i < len(expectedPrefixes); i++ {
-		assertHasPrefix(gen.data, expectedPrefixes[i], c)
+		assertHasPrefix(gen.Data, expectedPrefixes[i], c)
 	}
 
 	gen.AddSeeds("Today is a terrible day to be me")
@@ -71,7 +71,7 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 
 	for i := 0; i < len(suffixTests); i++ {
 		triple := suffixTests[i]
-		assertSuffixFrequencyCount(gen.data, triple.prefix, triple.suffix, triple.count, c)
+		assertSuffixFrequencyCount(gen.Data, triple.prefix, triple.suffix, triple.count, c)
 	}
 }
 
@@ -79,30 +79,30 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 // representations for the same canonical prefix, e.g. "Daddy says" ==
 // "daddy says" == "DADDY SAYS"
 func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
-	gen := CreateGenerator("laurelita_ebooks", 2, 140)
+	gen := CreateGenerator(2, 140)
 
 	gen.AddSeeds("I've NEVER BEEN so mad")
 	gen.AddSeeds("Ive never \"been\" so sad")
 	gen.AddSeeds("IVE NEVER KILLED A MAN STOP ASKING")
 	gen.AddSeeds("you have been so sad!!!")
 
-    assertHasPrefix(gen.data, "ive never", c)
-    assertHasPrefix(gen.reps, "ive", c)
-    assertHasPrefix(gen.reps, "never", c)
-    assertSuffixFrequencyCount(gen.data, "ive never", "been", 2, c)
-    assertSuffixFrequencyCount(gen.reps, "ive", "IVE", 1, c)
-    assertSuffixFrequencyCount(gen.reps, "ive", "I've", 1, c)
-    assertSuffixFrequencyCount(gen.reps, "ive", "Ive", 1, c)
-    assertSuffixFrequencyCount(gen.reps, "never", "never", 1, c)
-    assertSuffixFrequencyCount(gen.reps, "never", "NEVER", 2, c)
+    assertHasPrefix(gen.Data, "ive never", c)
+    assertHasPrefix(gen.Reps, "ive", c)
+    assertHasPrefix(gen.Reps, "never", c)
+    assertSuffixFrequencyCount(gen.Data, "ive never", "been", 2, c)
+    assertSuffixFrequencyCount(gen.Reps, "ive", "IVE", 1, c)
+    assertSuffixFrequencyCount(gen.Reps, "ive", "I've", 1, c)
+    assertSuffixFrequencyCount(gen.Reps, "ive", "Ive", 1, c)
+    assertSuffixFrequencyCount(gen.Reps, "never", "never", 1, c)
+    assertSuffixFrequencyCount(gen.Reps, "never", "NEVER", 2, c)
 
-    assertHasPrefix(gen.reps, "been", c)
-    assertHasPrefix(gen.reps, "so", c)
-    assertSuffixFrequencyCount(gen.data, "been so", "sad", 2, c)
-    assertSuffixFrequencyCount(gen.data, "been so", "mad", 1, c)
-    assertSuffixFrequencyCount(gen.reps, "mad", "mad", 1, c)
-    assertSuffixFrequencyCount(gen.reps, "sad", "sad!!!", 1, c)
-    assertSuffixFrequencyCount(gen.reps, "sad", "sad", 1, c)
+    assertHasPrefix(gen.Reps, "been", c)
+    assertHasPrefix(gen.Reps, "so", c)
+    assertSuffixFrequencyCount(gen.Data, "been so", "sad", 2, c)
+    assertSuffixFrequencyCount(gen.Data, "been so", "mad", 1, c)
+    assertSuffixFrequencyCount(gen.Reps, "mad", "mad", 1, c)
+    assertSuffixFrequencyCount(gen.Reps, "sad", "sad!!!", 1, c)
+    assertSuffixFrequencyCount(gen.Reps, "sad", "sad", 1, c)
 }
 
 
@@ -122,7 +122,7 @@ func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
 //   of times.
 func (s MarkovSuite) TestGenerateText(c *gocheck.C) {
 	// Single sentence case.
-	gen := CreateGenerator("laurelita_ebooks", 2, 140)
+	gen := CreateGenerator(2, 140)
 	gen.AddSeeds("Today is a great day to be alive")
 
 	returnText := gen.GenerateFromPrefix("today is")

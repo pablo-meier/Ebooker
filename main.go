@@ -20,9 +20,12 @@ func main() {
 
     flag.Parse()
 
+    dh := ebooker.GetDataHandle("./ebooker_tweets.db")
+    defer dh.Cleanup()
+
     // get tweets from persistent storage
     statusMsg("Reading from persistent storage...\n", silent)
-    oldTweets := ebooker.GetTweetsFromStorage(username)
+    oldTweets := dh.GetTweetsFromStorage(username)
 
     var newTweets []ebooker.TweetData
     if len(oldTweets) == 0 {
@@ -35,7 +38,7 @@ func main() {
 
     // update the persistent storage
     statusMsg(fmt.Sprintf("Inserting %d new tweets into persistent storage.\n", len(newTweets)), silent)
-    ebooker.InsertFreshTweets(newTweets)
+    dh.InsertFreshTweets(username, newTweets)
 
     // fetch Generator from datastore
     gen := ebooker.CreateGenerator(prefixLen, 140)
@@ -49,9 +52,9 @@ func main() {
     }
 
     // Generate some faux tweets. Print them!
+    statusMsg(fmt.Sprintf("For %s:\n", username), silent)
     for i := 0; i < numTweets; i++ {
-        statusMsg(fmt.Sprintf("For %s:\n", username), silent)
-        fmt.Printf("-------------\n%s\n", gen.GenerateText())
+        fmt.Printf("  %s\n", gen.GenerateText())
     }
 }
 
