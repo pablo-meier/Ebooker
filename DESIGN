@@ -1,3 +1,9 @@
+-- Remove appengine
+* Find/create pluggable interfaces?
+** http/urlfetch
+** datastore/sqlite
+
+
 -- Critical
 
 * Datastore bug.

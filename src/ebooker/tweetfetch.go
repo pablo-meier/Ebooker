@@ -9,9 +9,6 @@ import (
     "net/http"
     "io/ioutil"
     "strings"
-
-    "appengine"
-    "appengine/urlfetch"
 )
 
 
@@ -19,7 +16,7 @@ type TweetData struct {
     // Storing the Id in an int64 rather than uint64 because datastore only 
     // allows signed ints :(
     Id int64 `json:"id"`
-    Text string `datastore:",noindex" json:"text"`
+    Text string `json:"text"`
     Screen_name string `json:"screen_name"`
 }
 
@@ -39,12 +36,11 @@ var baseQuery = strings.Join([]string{ urlRequestBase, params}, "?")
 // as we can by recursively calling with the max_id. See:
 //
 // https://dev.twitter.com/docs/working-with-timelines
-func DeepDive(c appengine.Context, username string) []TweetData {
+func DeepDive(username string) []TweetData {
     fmt.Println("Doing a deep dive!")
-    client := urlfetch.Client(c)
     queryStr := fmt.Sprintf(baseQuery, username)
 
-    tweets := getTweetsFromClient(client, queryStr)
+    tweets := getTweetsFromClient(queryStr)
 
     // HAX HAX HAX
     for i := range tweets {
@@ -56,7 +52,7 @@ func DeepDive(c appengine.Context, username string) []TweetData {
         newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
         newQueryStr := fmt.Sprintf(newQueryBase, maxId)
 
-        olderTweets := getTweetsFromClient(client, newQueryStr)
+        olderTweets := getTweetsFromClient(newQueryStr)
         if len(olderTweets) == 0 { break }
 
         newOldestId := olderTweets[len(olderTweets) - 1].Id
@@ -77,20 +73,19 @@ func DeepDive(c appengine.Context, username string) []TweetData {
 // GetRecentTimeline is the much more common use case: we fetch tweets from the
 // timeline, using since_id. This allows us to incrementally build our tweet
 // database.
-func GetTimelineFromRequest(c appengine.Context, username string, latest *TweetData) []TweetData {
-    client := urlfetch.Client(c)
+func GetTimelineFromRequest(username string, latest *TweetData) []TweetData {
     queryBase := strings.Join([]string{ baseQuery, sinceIdParam }, "&")
     queryStr := fmt.Sprintf(queryBase, latest.Screen_name, latest.Id)
 
-    tweets := getTweetsFromClient(client, queryStr)
+    tweets := getTweetsFromClient(queryStr)
 
     return tweets
 }
 
 
-func getTweetsFromClient(client *http.Client, queryStr string) []TweetData {
+func getTweetsFromClient(queryStr string) []TweetData {
 
-    resp, err := client.Get(queryStr)
+    resp, err := http.Get(queryStr)
 
     if err != nil { log.Fatal(err) }
 

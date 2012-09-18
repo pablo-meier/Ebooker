@@ -72,7 +72,6 @@ type CountedStringMap map[string]*CountedStringList
 // Generators gives us all we need to build a fresh data model to generate 
 // from.
 type Generator struct {
-	Screen_name string
     PrefixLen int
 	CharLimit int
 	Data      CountedStringMap     // suffix map
@@ -82,11 +81,11 @@ type Generator struct {
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 
 // use.
-func CreateGenerator(name string, prefixLen int, charLimit int) *Generator {
+func CreateGenerator(prefixLen int, charLimit int) *Generator {
 	markov := make(CountedStringMap)
     reps := make(CountedStringMap)
     beginnings := []string{}
-	return &Generator{name, prefixLen, charLimit, markov, reps, beginnings}
+	return &Generator{prefixLen, charLimit, markov, reps, beginnings}
 }
 
 // Convenience method, already populating the first "hit" of the CountedString.
