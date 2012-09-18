@@ -73,10 +73,11 @@ type CountedStringMap map[string]*CountedStringList
 // from.
 type Generator struct {
 	Screen_name string
-    PrefixLen int `datastore:",noindex"`
-	CharLimit int `datastore:",noindex"`
-	Data      CountedStringMap `datastore:",noindex"`     // suffix map
-	Reps      CountedStringMap `datastore:",noindex"`    // representation map
+    PrefixLen int
+	CharLimit int
+	Data      CountedStringMap     // suffix map
+	Reps      CountedStringMap     // representation map
+	Beginnings []string            // acceptable ways to start a tweet.
 }
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 
@@ -84,7 +85,8 @@ type Generator struct {
 func CreateGenerator(name string, prefixLen int, charLimit int) *Generator {
 	markov := make(CountedStringMap)
     reps := make(CountedStringMap)
-	return &Generator{name, prefixLen, charLimit, markov, reps}
+    beginnings := []string{}
+	return &Generator{name, prefixLen, charLimit, markov, reps, beginnings}
 }
 
 // Convenience method, already populating the first "hit" of the CountedString.
@@ -101,6 +103,11 @@ func (g *Generator) AddSeeds(input string) {
     for i :=0; i < len(raw); i++ {
         canonical = append(canonical, Canonicalize(raw[i]))
         AddToMap(canonical[i], raw[i], g.Reps)
+    }
+
+    if len(canonical) >= g.PrefixLen {
+        firstPrefix := strings.Join(canonical[0:g.PrefixLen], " ")
+        g.Beginnings = append(g.Beginnings, firstPrefix)
     }
 
 	for len(canonical) > g.PrefixLen {
@@ -204,7 +211,7 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
 
     if !exists {
         //TODO: Just pulled this out of my ass, probably better to think something for realz
-        if rand.Intn(11) > 4 {
+        if rand.Intn(11) > 2 {
             csList = g.Data[g.randomPrefix()] //continue path
         } else {
 	        return "", true, "", 0  // terminate path
@@ -226,26 +233,21 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
 
 func (cs CountedStringList) DrawProbabilistically() string {
     index := rand.Intn(cs.total) + 1
-    //debug("Random index is", index)
     for i := 0; i < len(cs.slice); i++ {
-        //debug("Testing if", index, "is <=", slice[i].hits)
         if index <= cs.slice[i].hits {
             return cs.slice[i].str
         }
-        //debug("moving on...")
         index -= cs.slice[i].hits
     }
     return ""
 }
 
 func (g *Generator) randomPrefix() string {
-	index := rand.Intn(len(g.Data))
-	count := 0
-	for k, _ := range g.Data {
-		if count == index {
-			return k
+	index := rand.Intn(len(g.Beginnings))
+	for i := range g.Beginnings {
+		if i == index {
+			return g.Beginnings[i]
 		}
-		count++
 	}
 	// Shouldn't ever get here! Satisfy the compiler tho
 	return ""
