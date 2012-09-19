@@ -46,8 +46,6 @@ import (
 	"strings"
 )
 
-const DEBUG = true
-
 // Since both maps (the prefix -> suffix and canonical -> representation) 
 // operate about the same way, we abstract their representation into a notion
 // of CountedStrings, where the values of the map contain both the string we
@@ -77,6 +75,7 @@ type Generator struct {
 	Data      CountedStringMap     // suffix map
 	Reps      CountedStringMap     // representation map
 	Beginnings []string            // acceptable ways to start a tweet.
+    canon bool                     // map sources seperately from representations.
 }
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 
@@ -85,7 +84,7 @@ func CreateGenerator(prefixLen int, charLimit int) *Generator {
 	markov := make(CountedStringMap)
     reps := make(CountedStringMap)
     beginnings := []string{}
-	return &Generator{prefixLen, charLimit, markov, reps, beginnings}
+	return &Generator{prefixLen, charLimit, markov, reps, beginnings, false}
 }
 
 // Convenience method, already populating the first "hit" of the CountedString.
@@ -96,19 +95,22 @@ func createCountedString(str string) *CountedString{
 // AddSeeds takes in a string, breaks it into prefixes, and adds it to the 
 // data model. 
 func (g *Generator) AddSeeds(input string) {
-	raw := tokenize(StripReply(input))
+	source := tokenize(StripReply(input))
 
-	var canonical []string
-    for i :=0; i < len(raw); i++ {
-        canonical = append(canonical, Canonicalize(raw[i]))
-        AddToMap(canonical[i], raw[i], g.Reps)
+    if g.canon {
+        var canonical []string
+        for i := 0; i < len(source); i++ {
+            canonical = append(canonical, Canonicalize(source[i]))
+            AddToMap(canonical[i], source[i], g.Reps)
+        }
+        source = canonical
     }
 
 	first := true
-	for len(canonical) > g.PrefixLen {
-		prefix := strings.Join(canonical[0:g.PrefixLen], " ")
-		AddToMap(prefix, canonical[g.PrefixLen], g.Data)
-		canonical = canonical[1:]
+	for len(source) > g.PrefixLen {
+		prefix := strings.Join(source[0:g.PrefixLen], " ")
+		AddToMap(prefix, source[g.PrefixLen], g.Data)
+		source = source [1:]
 		if first {
             g.Beginnings = append(g.Beginnings, prefix)
             first = false
@@ -172,32 +174,35 @@ func (g *Generator) GenerateText() string {
 // We expose this version primarily for testing.
 func (g *Generator) GenerateFromPrefix(prefix string) string {
 
-    // can break if your prefix's rep is longer than the charLimit, should generalize
-    split := strings.Split(prefix, " ")
+    // Representation gets a special case, since you can have a multi-word 
+    // prefix (e.g. "Paul is") but each word needs it's own representation
+    // (e.g. "PAUL is" or "pAUL Is"). Note that this can break if your 
+    // prefix's rep is longer than the charLimit, should we generalize
     var result []string
 	charLimit := g.CharLimit
-    for i := 0; i < len(split); i++ {
-        rep := g.Reps[split[i]].DrawProbabilistically()
-        charLimit -= len(rep)
-        result = append(result, rep)
-    }
 
+	if g.canon {
+        split := strings.Split(prefix, " ")
+        for _, token := range split {
+            rep := g.Reps[token].DrawProbabilistically()
+            charLimit -= len(rep)
+            result = append(result, rep)
+        }
+    } else {
+        result = append(result, prefix)
+    }
 
 	// gotchas: what if we generate a prefix that isn't in the map?
 	// proper termination conditions.
 	for {
-		//debug("Entering popNextWord -- prefix is", prefix, "and charLimit is", charLimit)
 		word, shouldTerminate, newPrefix, newCharLimit := g.PopNextWord(prefix, charLimit)
 		prefix = newPrefix
 		charLimit = newCharLimit
 
-		//debug("returned! word is", word, "shouldTerminate is", shouldTerminate)
-		//debug("newPrefix is", newPrefix, "newCharLimit is", newCharLimit)
 		if shouldTerminate {
 			break
 		} else {
 			result = append(result, word)
-			//debug("result will now be", strings.Join(result, " "))
 		}
 	}
 
@@ -209,15 +214,16 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
 	csList, exists := g.Data[prefix]
 
     if !exists {
-        //TODO: Just pulled this out of my ass, probably better to think something for realz
-        if rand.Intn(11) > 2 {
-            csList = g.Data[g.randomPrefix()] //continue path
-        } else {
-	        return "", true, "", 0  // terminate path
-        }
+        return "", true, "", 0  // terminate path
     }
     successor := csList.DrawProbabilistically()
-    rep := g.Reps[successor].DrawProbabilistically()
+    var rep string
+    if g.canon {
+        rep = g.Reps[successor].DrawProbabilistically()
+    } else {
+        rep = successor
+    }
+
     addsTo := len(rep) + 1
 
     if addsTo <= limit {
@@ -227,6 +233,10 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
         return rep, false, newPrefix, newLimit
     }
 	return "", true, "", 0
+}
+
+func (g Generator) CanonicalizeSources() {
+    g.canon = true
 }
 
 
@@ -262,8 +272,3 @@ func (s *CountedStringList) GetSuffix(lookFor string) (*CountedString, bool) {
 	return createCountedString(""), false
 }
 
-func debug(str string) {
-	if DEBUG {
-		fmt.Println(str)
-	}
-}

@@ -1,7 +1,11 @@
 -- Critical
 
+"Flaggability" of seperate canonical/representation style.
+App-wide silenceability, configuration.
+
 * User abstraction.
 * TESTS
+** Integration test for the actual command-line client: test flags, etc.
 * REFACTORING
 * LOGGING
 
@@ -25,12 +29,13 @@
      weird-as-hell as possible).
 
 -- Later
-* Repeat tweet bug (some tweets on the border get doubled)
-* Handle asyncronous fetches from Twitter, generation, e.g.
-** Load page immediately, with no content.
-** Websocket (or some such technology) to send tweets to the frontend, create new ones on command,
-** 'favorite' or save some as desired.
+* Webapp
+
+Features
+--------
 * Multiple sources if desired (SrLaurelita)
+* Handle asyncronous fetches from Twitter, generation, e.g.
+** Actually run as a damn service.
 
 
 ---

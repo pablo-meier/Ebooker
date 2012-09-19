@@ -13,12 +13,13 @@ func main() {
 
     var username string
     var prefixLen, numTweets int
-    var silent bool
+    var silent, reps bool
 
     flag.StringVar(&username, "user", "laurelita", "Twitter user to base output off of.")
     flag.IntVar(&prefixLen, "prefixLength", 1, "length of prefix")
     flag.IntVar(&numTweets, "numTweets", 50, "the number of tweets to produce")
     flag.BoolVar(&silent, "silent", true, "Generate only the tweets, without other status information.")
+    flag.BoolVar(&reps, "representations", false, "Treat various representations (e.g. \"Its/it's/IT'S\") as the same in generation.")
 
     flag.Parse()
     rand.Seed(time.Now().UnixNano())
@@ -46,6 +47,9 @@ func main() {
 
     // fetch Generator from datastore
     gen := ebooker.CreateGenerator(prefixLen, 140)
+    if reps {
+        gen.CanonicalizeSources()
+    }
 
     // Seed the Generator
     for i := range oldTweets {
