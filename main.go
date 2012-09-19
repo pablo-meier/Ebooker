@@ -5,6 +5,8 @@ import (
 
     "flag"
     "fmt"
+    "math/rand"
+    "time"
 )
 
 func main() {
@@ -19,6 +21,7 @@ func main() {
     flag.BoolVar(&silent, "silent", true, "Generate only the tweets, without other status information.")
 
     flag.Parse()
+    rand.Seed(time.Now().UnixNano())
 
     dh := ebooker.GetDataHandle("./ebooker_tweets.db")
     defer dh.Cleanup()
@@ -33,7 +36,8 @@ func main() {
         newTweets = ebooker.DeepDive(username)
     } else {
         statusMsg(fmt.Sprintf("Found %d tweets for %s.\n", len(oldTweets), username), silent)
-        newTweets = ebooker.GetTimelineFromRequest(username, &(oldTweets[0]))
+        newest := oldTweets[len(oldTweets) - 1]
+        newTweets = ebooker.GetTimelineFromRequest(username, &newest)
     }
 
     // update the persistent storage

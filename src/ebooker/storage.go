@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"log"
 	"strconv"
+	"sort"
 )
 
 type DataHandle struct {
@@ -39,18 +40,18 @@ func GetDataHandle(filename string) DataHandle {
 
 
 // Retrieves all tweets we have for a given user.
-func (dh DataHandle) GetTweetsFromStorage(username string) []TweetData {
+func (dh DataHandle) GetTweetsFromStorage(username string) Tweets {
 
     db := dh.handle
 
-	rows, err := db.Query("SELECT Id, Content FROM Tweets WHERE Screen_name = ?;", username)
+	rows, err := db.Query("SELECT Id, Content FROM Tweets WHERE Screen_name = ?", username)
 	if err != nil {
 		fmt.Println(err)
-		return []TweetData{}
+		return Tweets{}
 	}
 	defer rows.Close()
 
-	var oldtweets []TweetData
+	var oldtweets Tweets
 	for rows.Next() {
 		var id, text string
 		rows.Scan(&id, &text)
@@ -62,12 +63,14 @@ func (dh DataHandle) GetTweetsFromStorage(username string) []TweetData {
 	}
 	rows.Close()
 
+    sort.Sort(oldtweets)
+
     return oldtweets
 }
 
 
 // Inserts the tweets into the persistent storage.
-func (dh DataHandle) InsertFreshTweets(username string, newTweets []TweetData) {
+func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
 
     db := dh.handle
 
