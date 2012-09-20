@@ -41,7 +41,6 @@ Examples of awesome Markov Twitter bots:
 package ebooker
 
 import (
-	"fmt"
 	"math/rand"
 	"strings"
 )

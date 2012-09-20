@@ -1,7 +1,6 @@
 -- Critical
 
-"Flaggability" of seperate canonical/representation style.
-App-wide silenceability, configuration.
+App-wide silenceability, configuration, logging.
 
 * User abstraction.
 * TESTS
@@ -9,10 +8,11 @@ App-wide silenceability, configuration.
 * REFACTORING
 * LOGGING
 
+* Multiple sources if desired (SrLaurelita)
+
 * Improve the actual text generated.
 ** Ensure correctness -- some ending conditions are very suspicious.
-** Length of generated tweets: ensure that short ones aren't direct subsets?
-   Artificially create longer ones?
+** Length of generated tweets: ensure no direct subsets?
 
 ** "Sweeps," a set of filters that you can apply to the text, 
 *** Capitalization.
@@ -33,7 +33,6 @@ App-wide silenceability, configuration.
 
 Features
 --------
-* Multiple sources if desired (SrLaurelita)
 * Handle asyncronous fetches from Twitter, generation, e.g.
 ** Actually run as a damn service.
 
