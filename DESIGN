@@ -6,7 +6,6 @@ App-wide silenceability, configuration, logging.
 * TESTS
 ** Integration test for the actual command-line client: test flags, etc.
 * REFACTORING
-* LOGGING
 
 * Multiple sources if desired (SrLaurelita)
 
