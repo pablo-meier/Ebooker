@@ -1,21 +1,23 @@
-
+/*
+A lot of string manipulation happens in ebooker: We have to strip replies, we
+have to uppercase and lowercase for various effects, create new hashtags. This
+package lets us write our transformations.
+*/
 package ebooker
 
 import (
-    "regexp"
-    "strings"
+	"regexp"
+	"strings"
 )
-
 
 // Removes the reply-to field from the text of a tweet, e.g. "@SrPablo forget 
 // it!" -> "forget it!" Also removes "public directed tweets"; those tweets that
 // are effectively replies but designed to be seen publicly, such as ".@walmart 
 // what happens when u die?"
 func StripReply(str string) string {
-    replyCheck, _ := regexp.Compile("^(?:\\s*\\.\\s*)?(\\s*@[a-zA-Z0-9_=]+\\s*)")
-    return removePattern(str, replyCheck)
+	replyCheck, _ := regexp.Compile("^(?:\\s*\\.\\s*)?(\\s*@[a-zA-Z0-9_=]+\\s*)")
+	return removePattern(str, replyCheck)
 }
-
 
 // A string is "canonicalized" when it's content has been "neutralized" of what
 // data other than it's core content. We do this on maps to ensure that, for 
@@ -30,29 +32,28 @@ func StripReply(str string) string {
 //   * It is lowercased.
 //   * All punctuation has been removed.
 func Canonicalize(str string) string {
-    punctuation, _ := regexp.Compile("([\"'\\[\\]().,;:{}|\\\\+=_\\-?<>!@#$%^&*]|\\s)+")
-    stripped := removeAllOfPattern(str, punctuation)
-    return strings.ToLower(stripped)
+	punctuation, _ := regexp.Compile("([\"'\\[\\]().,;:{}|\\\\+=_\\-?<>!@#$%^&*]|\\s)+")
+	stripped := removeAllOfPattern(str, punctuation)
+	return strings.ToLower(stripped)
 }
-
 
 // Removes the first parts of a string that match the pattern.
 func removePattern(str string, pattern *regexp.Regexp) string {
-    found := pattern.Find([]byte(str))
+	found := pattern.Find([]byte(str))
 
-    if found != nil {
-        return strings.Replace(str, string(found), "", 1)
-    }
+	if found != nil {
+		return strings.Replace(str, string(found), "", 1)
+	}
 
-    return str
+	return str
 }
 
 // removePattern only removes the first instance of a pattern on a string, this
 // function removes all instances.
 func removeAllOfPattern(str string, pattern *regexp.Regexp) string {
-    compare := removePattern(str, pattern)
-    for compare != removePattern(compare, pattern) {
-        compare = removePattern(compare, pattern)
-    }
-    return compare
+	compare := removePattern(str, pattern)
+	for compare != removePattern(compare, pattern) {
+		compare = removePattern(compare, pattern)
+	}
+	return compare
 }

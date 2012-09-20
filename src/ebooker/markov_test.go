@@ -1,7 +1,7 @@
 package ebooker
 
 import (
-    "fmt"
+	"fmt"
 	"launchpad.net/gocheck"
 	"math"
 	"testing"
@@ -86,25 +86,24 @@ func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
 	gen.AddSeeds("IVE NEVER KILLED A MAN STOP ASKING")
 	gen.AddSeeds("you have been so sad!!!")
 
-    assertHasPrefix(gen.Data, "ive never", c)
-    assertHasPrefix(gen.Reps, "ive", c)
-    assertHasPrefix(gen.Reps, "never", c)
-    assertSuffixFrequencyCount(gen.Data, "ive never", "been", 2, c)
-    assertSuffixFrequencyCount(gen.Reps, "ive", "IVE", 1, c)
-    assertSuffixFrequencyCount(gen.Reps, "ive", "I've", 1, c)
-    assertSuffixFrequencyCount(gen.Reps, "ive", "Ive", 1, c)
-    assertSuffixFrequencyCount(gen.Reps, "never", "never", 1, c)
-    assertSuffixFrequencyCount(gen.Reps, "never", "NEVER", 2, c)
+	assertHasPrefix(gen.Data, "ive never", c)
+	assertHasPrefix(gen.Reps, "ive", c)
+	assertHasPrefix(gen.Reps, "never", c)
+	assertSuffixFrequencyCount(gen.Data, "ive never", "been", 2, c)
+	assertSuffixFrequencyCount(gen.Reps, "ive", "IVE", 1, c)
+	assertSuffixFrequencyCount(gen.Reps, "ive", "I've", 1, c)
+	assertSuffixFrequencyCount(gen.Reps, "ive", "Ive", 1, c)
+	assertSuffixFrequencyCount(gen.Reps, "never", "never", 1, c)
+	assertSuffixFrequencyCount(gen.Reps, "never", "NEVER", 2, c)
 
-    assertHasPrefix(gen.Reps, "been", c)
-    assertHasPrefix(gen.Reps, "so", c)
-    assertSuffixFrequencyCount(gen.Data, "been so", "sad", 2, c)
-    assertSuffixFrequencyCount(gen.Data, "been so", "mad", 1, c)
-    assertSuffixFrequencyCount(gen.Reps, "mad", "mad", 1, c)
-    assertSuffixFrequencyCount(gen.Reps, "sad", "sad!!!", 1, c)
-    assertSuffixFrequencyCount(gen.Reps, "sad", "sad", 1, c)
+	assertHasPrefix(gen.Reps, "been", c)
+	assertHasPrefix(gen.Reps, "so", c)
+	assertSuffixFrequencyCount(gen.Data, "been so", "sad", 2, c)
+	assertSuffixFrequencyCount(gen.Data, "been so", "mad", 1, c)
+	assertSuffixFrequencyCount(gen.Reps, "mad", "mad", 1, c)
+	assertSuffixFrequencyCount(gen.Reps, "sad", "sad!!!", 1, c)
+	assertSuffixFrequencyCount(gen.Reps, "sad", "sad", 1, c)
 }
-
 
 // Much harder to test in that we require some level of randomness. 
 // Essentially, after we generate the appropriate data model, we'll run
@@ -150,12 +149,11 @@ func (s MarkovSuite) TestGenerateText(c *gocheck.C) {
 	}
 }
 
-
 func assertHasPrefix(aMap CountedStringMap, prefix string, c *gocheck.C) {
 	_, exists := aMap[prefix]
 	if !exists {
-	    fmt.Printf("failure to find prefix \"%s\"", prefix)
-    }
+		fmt.Printf("failure to find prefix \"%s\"", prefix)
+	}
 	c.Assert(exists, gocheck.Equals, true)
 }
 
@@ -166,11 +164,10 @@ func assertSuffixFrequencyCount(aMap CountedStringMap, prefix, suffix string, co
 	c.Assert(exists, gocheck.Equals, true)
 
 	if count != countedStr.hits {
-	    fmt.Printf("expecting %d and got %d for '%s' -> '%s'", count, countedStr.hits, prefix, suffix)
-    }
+		fmt.Printf("expecting %d and got %d for '%s' -> '%s'", count, countedStr.hits, prefix, suffix)
+	}
 	c.Assert(countedStr.hits, gocheck.Equals, count)
 }
-
 
 func assertProperFrequencyGeneration(g *Generator, prefix, suffix string, prob float64, c *gocheck.C) {
 
@@ -187,11 +184,11 @@ func assertProperFrequencyGeneration(g *Generator, prefix, suffix string, prob f
 		}
 	}
 
-	success := math.Abs( ((float64(hits) / float64(trials)) - prob) ) < epsilon
+	success := math.Abs(((float64(hits) / float64(trials)) - prob)) < epsilon
 
 	if !success {
-        fmt.Printf("%s -> %s had probability %f, expected %f\n", prefix, suffix, float64(hits) / float64(trials), prob)
-    }
+		fmt.Printf("%s -> %s had probability %f, expected %f\n", prefix, suffix, float64(hits)/float64(trials), prob)
+	}
 
 	c.Assert(success, gocheck.Equals, true)
 }

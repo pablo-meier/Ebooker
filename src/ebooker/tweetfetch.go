@@ -1,32 +1,32 @@
-
-
+/*
+Package retrieves tweets from the Twitter servers, using their GET API.
+*/
 package ebooker
 
 import (
-    "encoding/json"
-    "fmt"
-    "html"
-    "net/http"
-    "io/ioutil"
-    "strings"
+	"encoding/json"
+	"fmt"
+	"html"
+	"io/ioutil"
+	"net/http"
+	"strings"
 )
 
 type TweetFetcher struct {
-    logger *LogMaster
+	logger *LogMaster
 }
 
 type TweetData struct {
-    Id uint64 `json:"id"`
-    Text string `json:"text"`
+	Id   uint64 `json:"id"`
+	Text string `json:"text"`
 }
 
 type Tweets []TweetData
 
 // For sorting
-func (t Tweets) Len() int { return len(t) }
-func (t Tweets) Swap(i, j int) { t[i], t[j] = t[j], t[i] }
+func (t Tweets) Len() int           { return len(t) }
+func (t Tweets) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t Tweets) Less(i, j int) bool { return t[i].Id < t[j].Id }
-
 
 const urlRequestBase = "http://api.twitter.com/1/statuses/user_timeline.json"
 const screenNameParam = "screen_name=%s"
@@ -35,12 +35,11 @@ const includeRtsParam = "include_rts=false"
 const sinceIdParam = "since_id=%d"
 const maxIdParam = "max_id=%d"
 
-var params = strings.Join([]string{ screenNameParam, countParam, includeRtsParam }, "&")
-var baseQuery = strings.Join([]string{ urlRequestBase, params}, "?")
-
+var params = strings.Join([]string{screenNameParam, countParam, includeRtsParam}, "&")
+var baseQuery = strings.Join([]string{urlRequestBase, params}, "?")
 
 func GetTweetFetcher(logger *LogMaster) TweetFetcher {
-    return TweetFetcher{logger}
+	return TweetFetcher{logger}
 }
 
 // DeepDive is for new accounts, of if you're the kind of person who runs
@@ -49,86 +48,83 @@ func GetTweetFetcher(logger *LogMaster) TweetFetcher {
 //
 // https://dev.twitter.com/docs/working-with-timelines
 func (tf TweetFetcher) DeepDive(username string) Tweets {
-    tf.logger.StatusWrite("Doing a deep dive!\n")
+	tf.logger.StatusWrite("Doing a deep dive!\n")
 
-    queryStr := fmt.Sprintf(baseQuery, username)
-    tweets := tf.getTweetsFromQuery(queryStr)
+	queryStr := fmt.Sprintf(baseQuery, username)
+	tweets := tf.getTweetsFromQuery(queryStr)
 
-    // the "- 1" is because max_id is inclusive, and we already have it.
-    maxId := tweets[tweets.Len() - 1].Id - 1
-    for ;; {
-        newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
-        newQueryStr := fmt.Sprintf(newQueryBase, maxId)
+	// the "- 1" is because max_id is inclusive, and we already have it.
+	maxId := tweets[tweets.Len()-1].Id - 1
+	for {
+		newQueryBase := strings.Join([]string{queryStr, maxIdParam}, "&")
+		newQueryStr := fmt.Sprintf(newQueryBase, maxId)
 
-        olderTweets := tf.getTweetsFromQuery(newQueryStr)
-        if olderTweets.Len() == 0 { break }
+		olderTweets := tf.getTweetsFromQuery(newQueryStr)
+		if olderTweets.Len() == 0 {
+			break
+		}
 
-        newOldestId := olderTweets[olderTweets.Len() - 1].Id
+		newOldestId := olderTweets[olderTweets.Len()-1].Id
 
-        if maxId == newOldestId {
-            break
-        } else {
-            maxId = newOldestId
-            tweets = appendSlices(tweets, olderTweets)
-            tf.logger.StatusWrite("Tweets have grown to %d\n", tweets.Len())
-        }
-    }
+		if maxId == newOldestId {
+			break
+		} else {
+			maxId = newOldestId
+			tweets = appendSlices(tweets, olderTweets)
+			tf.logger.StatusWrite("Tweets have grown to %d\n", tweets.Len())
+		}
+	}
 
-    return tweets
+	return tweets
 }
-
 
 // GetRecentTimeline is the much more common use case: we fetch tweets from the
 // timeline, using since_id. This allows us to incrementally build our tweet
 // database.
 func (tf TweetFetcher) GetTimelineFromRequest(username string, latest *TweetData) Tweets {
-    queryBase := strings.Join([]string{ baseQuery, sinceIdParam }, "&")
-    queryStr := fmt.Sprintf(queryBase, username, latest.Id)
+	queryBase := strings.Join([]string{baseQuery, sinceIdParam}, "&")
+	queryStr := fmt.Sprintf(queryBase, username, latest.Id)
 
-    tweets := tf.getTweetsFromQuery(queryStr)
+	tweets := tf.getTweetsFromQuery(queryStr)
 
-    return tweets
+	return tweets
 }
-
 
 func (tf TweetFetcher) getTweetsFromQuery(queryStr string) Tweets {
 
-    tf.logger.DebugWrite("Calling Twitter with GET String \"%s\"\n", queryStr)
-    resp, err := http.Get(queryStr)
+	tf.logger.DebugWrite("Calling Twitter with GET String \"%s\"\n", queryStr)
+	resp, err := http.Get(queryStr)
 
-    if err != nil {
-        tf.logger.StatusWrite("Received unexpected error from Twitter GET call.\n")
-        tf.logger.DebugWrite("error is: %v\n", err)
-    }
+	if err != nil {
+		tf.logger.StatusWrite("Received unexpected error from Twitter GET call.\n")
+		tf.logger.DebugWrite("error is: %v\n", err)
+	}
 
-    body, err := ioutil.ReadAll(resp.Body)
-    defer resp.Body.Close()
-    if err != nil {
-        tf.logger.StatusWrite("Received unexpected error from reading HTTP Response.\n")
-        tf.logger.DebugWrite("error is: %v\n", err)
-    }
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		tf.logger.StatusWrite("Received unexpected error from reading HTTP Response.\n")
+		tf.logger.DebugWrite("error is: %v\n", err)
+	}
 
-    var tweets Tweets
+	var tweets Tweets
 
-    err = json.Unmarshal(body, &tweets)
-    if err != nil {
-        tf.logger.StatusWrite("Received unexpected error from Unmarshalling JSON Response.\n")
-        tf.logger.DebugWrite("error is: %v\n", err)
-    }
+	err = json.Unmarshal(body, &tweets)
+	if err != nil {
+		tf.logger.StatusWrite("Received unexpected error from Unmarshalling JSON Response.\n")
+		tf.logger.DebugWrite("error is: %v\n", err)
+	}
 
-    for _, tweet := range tweets {
-        tweet.Text = html.UnescapeString(tweet.Text)
-    }
+	for _, tweet := range tweets {
+		tweet.Text = html.UnescapeString(tweet.Text)
+	}
 
-    return tweets
+	return tweets
 }
-
 
 func appendSlices(slice1, slice2 Tweets) Tweets {
-   newslice := make(Tweets, slice1.Len() + slice2.Len())
-   copy(newslice, slice1)
-   copy(newslice[slice1.Len():], slice2)
-   return newslice
+	newslice := make(Tweets, slice1.Len()+slice2.Len())
+	copy(newslice, slice1)
+	copy(newslice[slice1.Len():], slice2)
+	return newslice
 }
-
-

@@ -29,10 +29,10 @@ Note that for tweets, it's unlikely we'll use any prefix length greater than
 1, but it's useful to have in case we'd like to generate a larger output, like
 michaelochurch screeds.
 
-Note there is a great codewalk of a simple version of this algo on the Go website
-(http://golang.org/doc/codewalk/markov/), but I'm only taking the basic algo and
-supplying my own implementation, since it's more fun and gives me more insight
-into Go, and the problem at hand.
+Note there is a great codewalk of a simple version of this algo on the Go 
+website (http://golang.org/doc/codewalk/markov/), but I'm only taking the basic
+algo and supplying my own implementation, since it's more fun and gives me more
+insight into Go, and the problem at hand.
 
 Examples of awesome Markov Twitter bots: 
 @RandomTedTalks, @kpich_ebooks, @markov_bible
@@ -69,26 +69,26 @@ type CountedStringMap map[string]*CountedStringList
 // Generators gives us all we need to build a fresh data model to generate 
 // from.
 type Generator struct {
-    PrefixLen int
-	CharLimit int
-	Data      CountedStringMap     // suffix map
-	Reps      CountedStringMap     // representation map
-	Beginnings []string            // acceptable ways to start a tweet.
-    canon bool                     // map sources seperately from representations.
-    logger *LogMaster              // Lets us debug, emit status.
+	PrefixLen  int
+	CharLimit  int
+	Data       CountedStringMap // suffix map
+	Reps       CountedStringMap // representation map
+	Beginnings []string         // acceptable ways to start a tweet.
+	canon      bool             // map sources seperately from representations.
+	logger     *LogMaster       // Lets us debug, emit status.
 }
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 
 // use.
 func CreateGenerator(prefixLen int, charLimit int, logger *LogMaster) *Generator {
 	markov := make(CountedStringMap)
-    reps := make(CountedStringMap)
-    beginnings := []string{}
+	reps := make(CountedStringMap)
+	beginnings := []string{}
 	return &Generator{prefixLen, charLimit, markov, reps, beginnings, false, logger}
 }
 
 // Convenience method, already populating the first "hit" of the CountedString.
-func createCountedString(str string) *CountedString{
+func createCountedString(str string) *CountedString {
 	return &CountedString{1, str}
 }
 
@@ -97,23 +97,23 @@ func createCountedString(str string) *CountedString{
 func (g *Generator) AddSeeds(input string) {
 	source := tokenize(StripReply(input))
 
-    if g.canon {
-        var canonical []string
-        for i := 0; i < len(source); i++ {
-            canonical = append(canonical, Canonicalize(source[i]))
-            AddToMap(canonical[i], source[i], g.Reps)
-        }
-        source = canonical
-    }
+	if g.canon {
+		var canonical []string
+		for i := 0; i < len(source); i++ {
+			canonical = append(canonical, Canonicalize(source[i]))
+			AddToMap(canonical[i], source[i], g.Reps)
+		}
+		source = canonical
+	}
 
 	first := true
 	for len(source) > g.PrefixLen {
 		prefix := strings.Join(source[0:g.PrefixLen], " ")
 		AddToMap(prefix, source[g.PrefixLen], g.Data)
-		source = source [1:]
+		source = source[1:]
 		if first {
-            g.Beginnings = append(g.Beginnings, prefix)
-            first = false
+			g.Beginnings = append(g.Beginnings, prefix)
+			first = false
 		}
 	}
 }
@@ -123,22 +123,22 @@ func (g *Generator) AddSeeds(input string) {
 // it if it didn't exist previously.
 func AddToMap(prefix, toAdd string, aMap CountedStringMap) {
 
-    if csList, exists := aMap[prefix]; exists {
-        if countedStr, member := csList.hasCountedString(toAdd); member {
-            countedStr.hits++
-        } else {
-            countedStr = createCountedString(toAdd)
-            csList.slice = append(csList.slice, countedStr)
-        }
-        csList.total++
-    } else {
-        countedStr := createCountedString(toAdd)
-        countedStrSlice := make([]*CountedString, 0)
-        countedStrSlice = append(countedStrSlice, countedStr)
-        csList := &CountedStringList{countedStrSlice, 1}
+	if csList, exists := aMap[prefix]; exists {
+		if countedStr, member := csList.hasCountedString(toAdd); member {
+			countedStr.hits++
+		} else {
+			countedStr = createCountedString(toAdd)
+			csList.slice = append(csList.slice, countedStr)
+		}
+		csList.total++
+	} else {
+		countedStr := createCountedString(toAdd)
+		countedStrSlice := make([]*CountedString, 0)
+		countedStrSlice = append(countedStrSlice, countedStr)
+		csList := &CountedStringList{countedStrSlice, 1}
 
-        aMap[prefix] = csList
-    }
+		aMap[prefix] = csList
+	}
 }
 
 // tokenize splits the input string into "words" we use as prefixes and 
@@ -174,25 +174,25 @@ func (g *Generator) GenerateText() string {
 // We expose this version primarily for testing.
 func (g *Generator) GenerateFromPrefix(prefix string) string {
 
-    g.logger.DebugWrite("Generating text from prefix \"%s\"\n", prefix)
+	g.logger.DebugWrite("Generating text from prefix \"%s\"\n", prefix)
 
-    // Representation gets a special case, since you can have a multi-word 
-    // prefix (e.g. "Paul is") but each word needs it's own representation
-    // (e.g. "PAUL" "is" or "pAUL" "Is"). Note that this can break if your 
-    // prefix's rep is longer than the charLimit, should we generalize
-    var result []string
+	// Representation gets a special case, since you can have a multi-word 
+	// prefix (e.g. "Paul is") but each word needs it's own representation
+	// (e.g. "PAUL" "is" or "pAUL" "Is"). Note that this can break if your 
+	// prefix's rep is longer than the charLimit, should we generalize
+	var result []string
 	charLimit := g.CharLimit
 
 	if g.canon {
-        split := strings.Split(prefix, " ")
-        for _, token := range split {
-            rep := g.Reps[token].DrawProbabilistically()
-            charLimit -= len(rep)
-            result = append(result, rep)
-        }
-    } else {
-        result = append(result, prefix)
-    }
+		split := strings.Split(prefix, " ")
+		for _, token := range split {
+			rep := g.Reps[token].DrawProbabilistically()
+			charLimit -= len(rep)
+			result = append(result, rep)
+		}
+	} else {
+		result = append(result, prefix)
+	}
 
 	for {
 		word, shouldTerminate, newPrefix, newCharLimit := g.PopNextWord(prefix, charLimit)
@@ -203,7 +203,7 @@ func (g *Generator) GenerateFromPrefix(prefix string) string {
 			break
 		} else {
 			result = append(result, word)
-		    g.logger.DebugWrite("New Prefix is \"%s\", %d characters remain\n", newPrefix, newCharLimit)
+			g.logger.DebugWrite("New Prefix is \"%s\", %d characters remain\n", newPrefix, newCharLimit)
 		}
 	}
 
@@ -214,46 +214,45 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
 
 	csList, exists := g.Data[prefix]
 
-    if !exists {
-        g.logger.DebugWrite("Prefix does not exist, terminating this run.\n")
-        return "", true, "", 0  // terminate path
-    }
-    successor := csList.DrawProbabilistically()
-    g.logger.DebugWrite("Drew \"%s\" as successor to \"%s\".\n", successor, prefix)
-    var rep string
-    if g.canon {
-        rep = g.Reps[successor].DrawProbabilistically()
-        g.logger.DebugWrite("After probabilisic draw, successor is respresented by \"%s\"\n", rep)
-    } else {
-        rep = successor
-    }
+	if !exists {
+		g.logger.DebugWrite("Prefix does not exist, terminating this run.\n")
+		return "", true, "", 0 // terminate path
+	}
+	successor := csList.DrawProbabilistically()
+	g.logger.DebugWrite("Drew \"%s\" as successor to \"%s\".\n", successor, prefix)
+	var rep string
+	if g.canon {
+		rep = g.Reps[successor].DrawProbabilistically()
+		g.logger.DebugWrite("After probabilisic draw, successor is respresented by \"%s\"\n", rep)
+	} else {
+		rep = successor
+	}
 
-    addsTo := len(rep) + 1
+	addsTo := len(rep) + 1
 
-    if addsTo <= limit {
-        shifted := append(strings.Split(prefix, " ")[1:], rep)
-        newPrefix := strings.Join(shifted, " ")
-        newLimit := limit - addsTo
-        return rep, false, newPrefix, newLimit
-    }
-    g.logger.DebugWrite("Exceeding character limit. Terminating run.\n")
+	if addsTo <= limit {
+		shifted := append(strings.Split(prefix, " ")[1:], rep)
+		newPrefix := strings.Join(shifted, " ")
+		newLimit := limit - addsTo
+		return rep, false, newPrefix, newLimit
+	}
+	g.logger.DebugWrite("Exceeding character limit. Terminating run.\n")
 	return "", true, "", 0
 }
 
 func (g Generator) CanonicalizeSources() {
-    g.canon = true
+	g.canon = true
 }
 
-
 func (cs CountedStringList) DrawProbabilistically() string {
-    index := rand.Intn(cs.total) + 1
-    for i := 0; i < len(cs.slice); i++ {
-        if index <= cs.slice[i].hits {
-            return cs.slice[i].str
-        }
-        index -= cs.slice[i].hits
-    }
-    return ""
+	index := rand.Intn(cs.total) + 1
+	for i := 0; i < len(cs.slice); i++ {
+		if index <= cs.slice[i].hits {
+			return cs.slice[i].str
+		}
+		index -= cs.slice[i].hits
+	}
+	return ""
 }
 
 func (g *Generator) randomPrefix() string {
@@ -270,4 +269,3 @@ func (s *CountedStringList) GetSuffix(lookFor string) (*CountedString, bool) {
 	}
 	return createCountedString(""), false
 }
-

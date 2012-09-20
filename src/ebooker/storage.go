@@ -1,36 +1,48 @@
+/*
+Package that handles persistent storage for the application.
+*/
 package ebooker
 
 import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"database/sql"
-	"strconv"
 	"sort"
+	"strconv"
 )
 
+// Top-level object that maintains the database connection.
 type DataHandle struct {
-    handle *sql.DB
-    logger *LogMaster
+	handle *sql.DB
+	logger *LogMaster
 }
 
 
-// Ensures we've got a valid instance of the database, and if not, creates one.
+// Cleanup function for resources used by `storage`. Should defer this call 
+// after obtaining a DataHandle!
+func (dh DataHandle) Cleanup() {
+	dh.handle.Close()
+}
+
+
+// Ensures we've got a valid instance of the database, and if not, creates one
+// with the appropriate tables.
 func GetDataHandle(filename string, logger *LogMaster) DataHandle {
 
 	db, err := sql.Open("sqlite3", filename)
-    handle := DataHandle{db, logger}
+	handle := DataHandle{db, logger}
 	if err != nil {
-	    logger.StatusWrite("sql.Open returned non-nil error!\n")
-	    logger.DebugWrite("sql.Open returned error: %v\n", err)
-	    return handle
+		logger.StatusWrite("sql.Open returned non-nil error!\n")
+		logger.DebugWrite("sql.Open returned error: %v\n", err)
+		return handle
 	}
 
-	sqls := []string{ "CREATE TABLE Tweets (Id TEXT NOT NULL, Screen_Name TEXT NOT NULL, Content TEXT NOT NULL)" }
+	sqls := []string{"CREATE TABLE Tweets (Id TEXT NOT NULL, Screen_Name TEXT NOT NULL, Content TEXT NOT NULL)"}
 	for _, sql := range sqls {
 		_, err = db.Exec(sql)
 		if err != nil && err.Error() != "table Tweets already exists" {
-	        logger.StatusWrite("sql.Open returned unexpected error on DataHandle Aquisition.\n")
-	        logger.DebugWrite("Error: %v\n", err)
+			logger.StatusWrite("sql.Open returned unexpected error on DataHandle Aquisition.\n")
+			logger.DebugWrite("Error: %v\n", err)
 			return handle
 		}
 	}
@@ -38,13 +50,12 @@ func GetDataHandle(filename string, logger *LogMaster) DataHandle {
 	return handle
 }
 
-
 // Retrieves all tweets we have for a given user.
 func (dh DataHandle) GetTweetsFromStorage(username string) Tweets {
-    db := dh.handle
+	db := dh.handle
 
-    queryStr := "SELECT Id, Content FROM Tweets WHERE Screen_name = ?"
-    dh.logger.DebugWrite("Query on datastore is %s on %s\n", queryStr, username)
+	queryStr := "SELECT Id, Content FROM Tweets WHERE Screen_name = ?"
+	dh.logger.DebugWrite("Query on datastore is %s on %s\n", queryStr, username)
 
 	rows, err := db.Query(queryStr, username)
 	if err != nil {
@@ -60,19 +71,18 @@ func (dh DataHandle) GetTweetsFromStorage(username string) Tweets {
 		rows.Scan(&id, &text)
 		idInt, err := strconv.ParseUint(id, 10, 64)
 		if err != nil {
-            dh.logger.StatusWrite("Tweet id %s not able to form valid ID in ParseUint\n", id)
+			dh.logger.StatusWrite("Tweet id %s not able to form valid ID in ParseUint\n", id)
 		}
-		oldtweets = append(oldtweets, TweetData{ idInt, text })
+		oldtweets = append(oldtweets, TweetData{idInt, text})
 	}
 	rows.Close()
-    sort.Sort(oldtweets)
-    return oldtweets
+	sort.Sort(oldtweets)
+	return oldtweets
 }
 
-
-// Inserts the tweets into the persistent storage.
+// Inserts tweets into persistent storage.
 func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
-    db := dh.handle
+	db := dh.handle
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -81,8 +91,8 @@ func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
 		return
 	}
 
-    insertStr := "INSERT INTO Tweets (Id, Screen_name, Content) VALUES (?, ?, ?)"
-    dh.logger.DebugWrite("SQL Statement to insert is \"%s\"\n", insertStr)
+	insertStr := "INSERT INTO Tweets (Id, Screen_name, Content) VALUES (?, ?, ?)"
+	dh.logger.DebugWrite("SQL Statement to insert is \"%s\"\n", insertStr)
 
 	stmt, err := tx.Prepare(insertStr)
 	if err != nil {
@@ -92,20 +102,15 @@ func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
 	}
 	defer stmt.Close()
 
-    for _, tweet := range newTweets {
-        idStr := strconv.FormatUint(tweet.Id, 10)
-        _, err = stmt.Exec(idStr, username, tweet.Text)
-        if err != nil {
-            dh.logger.StatusWrite("Unexpected Error in Executing INSERT Statement.\n")
-            dh.logger.DebugWrite("Error is %v\n", err)
-            return
-        }
-    }
+	for _, tweet := range newTweets {
+		idStr := strconv.FormatUint(tweet.Id, 10)
+		_, err = stmt.Exec(idStr, username, tweet.Text)
+		if err != nil {
+			dh.logger.StatusWrite("Unexpected Error in Executing INSERT Statement.\n")
+			dh.logger.DebugWrite("Error is %v\n", err)
+			return
+		}
+	}
 	tx.Commit()
 }
 
-
-// should defer on DataHandles!
-func (dh DataHandle) Cleanup() {
-	dh.handle.Close()
-}
