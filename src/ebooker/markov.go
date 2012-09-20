@@ -75,15 +75,16 @@ type Generator struct {
 	Reps      CountedStringMap     // representation map
 	Beginnings []string            // acceptable ways to start a tweet.
     canon bool                     // map sources seperately from representations.
+    logger *LogMaster              // Lets us debug, emit status.
 }
 
 // CreateGenerator returns a Generator that is fully initialized and ready for 
 // use.
-func CreateGenerator(prefixLen int, charLimit int) *Generator {
+func CreateGenerator(prefixLen int, charLimit int, logger *LogMaster) *Generator {
 	markov := make(CountedStringMap)
     reps := make(CountedStringMap)
     beginnings := []string{}
-	return &Generator{prefixLen, charLimit, markov, reps, beginnings, false}
+	return &Generator{prefixLen, charLimit, markov, reps, beginnings, false, logger}
 }
 
 // Convenience method, already populating the first "hit" of the CountedString.
@@ -173,9 +174,11 @@ func (g *Generator) GenerateText() string {
 // We expose this version primarily for testing.
 func (g *Generator) GenerateFromPrefix(prefix string) string {
 
+    g.logger.DebugWrite("Generating text from prefix \"%s\"\n", prefix)
+
     // Representation gets a special case, since you can have a multi-word 
     // prefix (e.g. "Paul is") but each word needs it's own representation
-    // (e.g. "PAUL is" or "pAUL Is"). Note that this can break if your 
+    // (e.g. "PAUL" "is" or "pAUL" "Is"). Note that this can break if your 
     // prefix's rep is longer than the charLimit, should we generalize
     var result []string
 	charLimit := g.CharLimit
@@ -191,8 +194,6 @@ func (g *Generator) GenerateFromPrefix(prefix string) string {
         result = append(result, prefix)
     }
 
-	// gotchas: what if we generate a prefix that isn't in the map?
-	// proper termination conditions.
 	for {
 		word, shouldTerminate, newPrefix, newCharLimit := g.PopNextWord(prefix, charLimit)
 		prefix = newPrefix
@@ -202,6 +203,7 @@ func (g *Generator) GenerateFromPrefix(prefix string) string {
 			break
 		} else {
 			result = append(result, word)
+		    g.logger.DebugWrite("New Prefix is \"%s\", %d characters remain\n", newPrefix, newCharLimit)
 		}
 	}
 
@@ -213,12 +215,15 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
 	csList, exists := g.Data[prefix]
 
     if !exists {
+        g.logger.DebugWrite("Prefix does not exist, terminating this run.\n")
         return "", true, "", 0  // terminate path
     }
     successor := csList.DrawProbabilistically()
+    g.logger.DebugWrite("Drew \"%s\" as successor to \"%s\".\n", successor, prefix)
     var rep string
     if g.canon {
         rep = g.Reps[successor].DrawProbabilistically()
+        g.logger.DebugWrite("After probabilisic draw, successor is respresented by \"%s\"\n", rep)
     } else {
         rep = successor
     }
@@ -231,6 +236,7 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
         newLimit := limit - addsTo
         return rep, false, newPrefix, newLimit
     }
+    g.logger.DebugWrite("Exceeding character limit. Terminating run.\n")
 	return "", true, "", 0
 }
 
@@ -252,13 +258,7 @@ func (cs CountedStringList) DrawProbabilistically() string {
 
 func (g *Generator) randomPrefix() string {
 	index := rand.Intn(len(g.Beginnings))
-	for i := range g.Beginnings {
-		if i == index {
-			return g.Beginnings[i]
-		}
-	}
-	// Shouldn't ever get here! Satisfy the compiler tho
-	return ""
+	return g.Beginnings[index]
 }
 
 // For testing.

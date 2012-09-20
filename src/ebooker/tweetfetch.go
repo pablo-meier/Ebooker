@@ -6,12 +6,14 @@ import (
     "encoding/json"
     "fmt"
     "html"
-    "log"
     "net/http"
     "io/ioutil"
     "strings"
 )
 
+type TweetFetcher struct {
+    logger *LogMaster
+}
 
 type TweetData struct {
     Id uint64 `json:"id"`
@@ -36,16 +38,21 @@ const maxIdParam = "max_id=%d"
 var params = strings.Join([]string{ screenNameParam, countParam, includeRtsParam }, "&")
 var baseQuery = strings.Join([]string{ urlRequestBase, params}, "?")
 
+
+func GetTweetFetcher(logger *LogMaster) TweetFetcher {
+    return TweetFetcher{logger}
+}
+
 // DeepDive is for new accounts, of if you're the kind of person who runs
 // 'make clean.' We take as much from the user's public-facing Twitter API
 // as we can by recursively calling with the max_id. See:
 //
 // https://dev.twitter.com/docs/working-with-timelines
-func DeepDive(username string) Tweets {
-    fmt.Println("Doing a deep dive!")
-    queryStr := fmt.Sprintf(baseQuery, username)
+func (tf TweetFetcher) DeepDive(username string) Tweets {
+    tf.logger.StatusWrite("Doing a deep dive!\n")
 
-    tweets := getTweetsFromClient(queryStr)
+    queryStr := fmt.Sprintf(baseQuery, username)
+    tweets := tf.getTweetsFromQuery(queryStr)
 
     // the "- 1" is because max_id is inclusive, and we already have it.
     maxId := tweets[tweets.Len() - 1].Id - 1
@@ -53,7 +60,7 @@ func DeepDive(username string) Tweets {
         newQueryBase := strings.Join([]string{ queryStr, maxIdParam }, "&")
         newQueryStr := fmt.Sprintf(newQueryBase, maxId)
 
-        olderTweets := getTweetsFromClient(newQueryStr)
+        olderTweets := tf.getTweetsFromQuery(newQueryStr)
         if olderTweets.Len() == 0 { break }
 
         newOldestId := olderTweets[olderTweets.Len() - 1].Id
@@ -63,7 +70,7 @@ func DeepDive(username string) Tweets {
         } else {
             maxId = newOldestId
             tweets = appendSlices(tweets, olderTweets)
-            fmt.Println("Tweets have grown to", tweets.Len())
+            tf.logger.StatusWrite("Tweets have grown to %d\n", tweets.Len())
         }
     }
 
@@ -74,30 +81,40 @@ func DeepDive(username string) Tweets {
 // GetRecentTimeline is the much more common use case: we fetch tweets from the
 // timeline, using since_id. This allows us to incrementally build our tweet
 // database.
-func GetTimelineFromRequest(username string, latest *TweetData) Tweets {
+func (tf TweetFetcher) GetTimelineFromRequest(username string, latest *TweetData) Tweets {
     queryBase := strings.Join([]string{ baseQuery, sinceIdParam }, "&")
     queryStr := fmt.Sprintf(queryBase, username, latest.Id)
 
-    tweets := getTweetsFromClient(queryStr)
+    tweets := tf.getTweetsFromQuery(queryStr)
 
     return tweets
 }
 
 
-func getTweetsFromClient(queryStr string) Tweets {
+func (tf TweetFetcher) getTweetsFromQuery(queryStr string) Tweets {
 
+    tf.logger.DebugWrite("Calling Twitter with GET String \"%s\"\n", queryStr)
     resp, err := http.Get(queryStr)
 
-    if err != nil { log.Fatal(err) }
+    if err != nil {
+        tf.logger.StatusWrite("Received unexpected error from Twitter GET call.\n")
+        tf.logger.DebugWrite("error is: %v\n", err)
+    }
 
     body, err := ioutil.ReadAll(resp.Body)
     defer resp.Body.Close()
-    if err != nil { log.Fatal(err) }
+    if err != nil {
+        tf.logger.StatusWrite("Received unexpected error from reading HTTP Response.\n")
+        tf.logger.DebugWrite("error is: %v\n", err)
+    }
 
     var tweets Tweets
 
     err = json.Unmarshal(body, &tweets)
-    if err != nil { log.Fatal(err) }
+    if err != nil {
+        tf.logger.StatusWrite("Received unexpected error from Unmarshalling JSON Response.\n")
+        tf.logger.DebugWrite("error is: %v\n", err)
+    }
 
     for _, tweet := range tweets {
         tweet.Text = html.UnescapeString(tweet.Text)

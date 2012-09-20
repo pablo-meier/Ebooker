@@ -3,26 +3,25 @@ package ebooker
 import (
 	_ "github.com/mattn/go-sqlite3"
 
-	"fmt"
 	"database/sql"
-	"log"
 	"strconv"
 	"sort"
 )
 
 type DataHandle struct {
     handle *sql.DB
+    logger *LogMaster
 }
 
 
 // Ensures we've got a valid instance of the database, and if not, creates one.
-func GetDataHandle(filename string) DataHandle {
+func GetDataHandle(filename string, logger *LogMaster) DataHandle {
 
 	db, err := sql.Open("sqlite3", filename)
-    handle := DataHandle{db}
+    handle := DataHandle{db, logger}
 	if err != nil {
-		fmt.Println(err)
-	    log.Fatal(err)
+	    logger.StatusWrite("sql.Open returned non-nil error!\n")
+	    logger.DebugWrite("sql.Open returned error: %v\n", err)
 	    return handle
 	}
 
@@ -30,7 +29,8 @@ func GetDataHandle(filename string) DataHandle {
 	for _, sql := range sqls {
 		_, err = db.Exec(sql)
 		if err != nil && err.Error() != "table Tweets already exists" {
-			fmt.Printf("%q: %s\n", err, sql)
+	        logger.StatusWrite("sql.Open returned unexpected error on DataHandle Aquisition.\n")
+	        logger.DebugWrite("Error: %v\n", err)
 			return handle
 		}
 	}
@@ -41,12 +41,15 @@ func GetDataHandle(filename string) DataHandle {
 
 // Retrieves all tweets we have for a given user.
 func (dh DataHandle) GetTweetsFromStorage(username string) Tweets {
-
     db := dh.handle
 
-	rows, err := db.Query("SELECT Id, Content FROM Tweets WHERE Screen_name = ?", username)
+    queryStr := "SELECT Id, Content FROM Tweets WHERE Screen_name = ?"
+    dh.logger.DebugWrite("Query on datastore is %s on %s\n", queryStr, username)
+
+	rows, err := db.Query(queryStr, username)
 	if err != nil {
-		fmt.Println(err)
+		dh.logger.StatusWrite("Unexpected error on query to datastore\n")
+		dh.logger.DebugWrite("Error was %v\n", queryStr, username, err)
 		return Tweets{}
 	}
 	defer rows.Close()
@@ -57,32 +60,34 @@ func (dh DataHandle) GetTweetsFromStorage(username string) Tweets {
 		rows.Scan(&id, &text)
 		idInt, err := strconv.ParseUint(id, 10, 64)
 		if err != nil {
-            log.Fatal(fmt.Sprintf("Tweet id %s not able to form valid ID in ParseUint\n", id))
+            dh.logger.StatusWrite("Tweet id %s not able to form valid ID in ParseUint\n", id)
 		}
 		oldtweets = append(oldtweets, TweetData{ idInt, text })
 	}
 	rows.Close()
-
     sort.Sort(oldtweets)
-
     return oldtweets
 }
 
 
 // Inserts the tweets into the persistent storage.
 func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
-
     db := dh.handle
 
 	tx, err := db.Begin()
 	if err != nil {
-		fmt.Println(err)
+		dh.logger.StatusWrite("Unexpected Error in Aquiring a Transaction to Insert into.\n")
+		dh.logger.DebugWrite("Error is %v\n", err)
 		return
 	}
 
-	stmt, err := tx.Prepare("INSERT INTO Tweets (Id, Screen_name, Content) VALUES (?, ?, ?)")
+    insertStr := "INSERT INTO Tweets (Id, Screen_name, Content) VALUES (?, ?, ?)"
+    dh.logger.DebugWrite("SQL Statement to insert is \"%s\"\n", insertStr)
+
+	stmt, err := tx.Prepare(insertStr)
 	if err != nil {
-		fmt.Println(err)
+		dh.logger.StatusWrite("Unexpected Error in Preparing INSERT Statement.\n")
+		dh.logger.DebugWrite("Error is %v\n", err)
 		return
 	}
 	defer stmt.Close()
@@ -91,7 +96,8 @@ func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
         idStr := strconv.FormatUint(tweet.Id, 10)
         _, err = stmt.Exec(idStr, username, tweet.Text)
         if err != nil {
-            fmt.Println(err)
+            dh.logger.StatusWrite("Unexpected Error in Executing INSERT Statement.\n")
+            dh.logger.DebugWrite("Error is %v\n", err)
             return
         }
     }
