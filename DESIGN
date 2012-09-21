@@ -1,40 +1,37 @@
 -- Critical
 
-App-wide silenceability, configuration, logging.
-
-* User abstraction.
+* REFACTORING
 * TESTS
 ** Integration test for the actual command-line client: test flags, etc.
-* REFACTORING
-
-* Multiple sources if desired (SrLaurelita)
 
 * Improve the actual text generated.
 ** Ensure correctness -- some ending conditions are very suspicious.
 ** Length of generated tweets: ensure no direct subsets?
 
-** "Sweeps," a set of filters that you can apply to the text, 
-*** Capitalization.
-**** ALLCAPS
-**** all lowercase, better known as the "instagram user"
-**** Washington Post Style, Where Every Word is Capitalized
-**** Force a proper sentence structure.
-
-*** Hashtags
-**** coffee dadder#
-**** Random #Hashtagging of a word.
-**** Chuck Grassleying #CombineWordsIntoOneTag (note that you'd probably want to 
-     remove a word from whatever you contract together to make it as 
-     weird-as-hell as possible).
-
--- Later
-* Webapp
 
 Features
 --------
+* Multiple sources if desired (SrLaurelitaJ0RDAN)
+* Actually run as a damn service.
+* Write a frontend "client" that serves like the current script does.
+* Another frontend is the webapp.
 * Handle asyncronous fetches from Twitter, generation, e.g.
-** Actually run as a damn service.
 
+* "Sweeps," a set of filters that you can apply to the text, 
+** Capitalization.
+*** ALLCAPS
+*** all lowercase, better known as the "instagram user"
+*** Washington Post Style, Where Every Word is Capitalized
+*** Force a proper sentence structure.
+
+** Hashtags
+*** coffee dadder#
+*** Random #Hashtagging of a word.
+*** Chuck Grassleying #CombineWordsIntoOneTag (note that you'd probably want to 
+     remove a word from whatever you contract together to make it as 
+     weird-as-hell as possible).
+
+* Twitter write privileges ("driverless" mode)
 
 ---
 A service that

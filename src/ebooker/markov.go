@@ -17,13 +17,18 @@ conditions on the text generation, such as occassionally deciding to start
 over, or taking the average tweet length of the user in question into 
 consideration.
 
-Note that we have two probabilistic maps: one for prefixes to suffixes (as 
-"hot dog food", above) and another for the -representation- of each word of
-text. E.g., we don't want the words "Hot Dog Food" and "hot dog food" and "Hot
-Dog! Food?" to be treated as seperate for their capitalization or punctuation. 
-We don't want to lose the data or character of the odd capitalizations or 
-punctuations, so we also record all the representations of what we call 
-"canonical" form of a word and select probabilistically from them as well.
+Note that we have two probabilistic maps in the code: one for prefixes to
+suffixes (as "hot dog food", above) and another for the -representation- of each
+word of text. The rationale for this was because I didn't want the words "Hot
+Dog Food" and "hot dog food" and "Hot Dog! Food?" to be treated as seperate for
+their capitalization or punctuation.  Since I didn't want to lose the data or
+character of the odd capitalizations or punctuations, the code also records all
+the representations of what we call "canonical" form of a word and select
+probabilistically from them as well.
+
+While this is still here and seemed cool at the time, the quality of the tweets
+it produced was subpar, since sentences had odder-than-desired representional
+noise. Usually, the feature is turned off.
 
 Note that for tweets, it's unlikely we'll use any prefix length greater than
 1, but it's useful to have in case we'd like to generate a larger output, like

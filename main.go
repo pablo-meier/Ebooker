@@ -1,3 +1,7 @@
+/*
+Command-line client that uses the janky ebooker package to generate tweets
+easily. See --help for all the settings.
+*/
 package main
 
 import (
@@ -53,18 +57,18 @@ func main() {
     logger.StatusWrite("Inserting %d new tweets into persistent storage.\n", len(newTweets))
     dh.InsertFreshTweets(username, newTweets)
 
-    // fetch Generator from datastore
+    // fetch or create a Generator
     gen := ebooker.CreateGenerator(prefixLen, 140, &logger)
     if reps {
         gen.CanonicalizeSources()
     }
 
     // Seed the Generator
-    for i := range oldTweets {
-        gen.AddSeeds(oldTweets[i].Text)
+    for _, tweet := range oldTweets {
+        gen.AddSeeds(tweet.Text)
     }
-    for i := range newTweets {
-        gen.AddSeeds(newTweets[i].Text)
+    for _, tweet := range newTweets {
+        gen.AddSeeds(tweet.Text)
     }
 
     // Generate some faux tweets. Print them!

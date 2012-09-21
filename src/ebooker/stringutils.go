@@ -15,14 +15,14 @@ import (
 // are effectively replies but designed to be seen publicly, such as ".@walmart 
 // what happens when u die?"
 func StripReply(str string) string {
-	replyCheck, _ := regexp.Compile("^(?:\\s*\\.\\s*)?(\\s*@[a-zA-Z0-9_=]+\\s*)")
+	replyCheck, _ := regexp.Compile("^(?:\\s*\\.)?(\\s*@[a-zA-Z0-9_=]+\\s*)")
 	return removePattern(str, replyCheck)
 }
 
 // A string is "canonicalized" when it's content has been "neutralized" of what
-// data other than it's core content. We do this on maps to ensure that, for 
-// example, odd capitalizations, or hashtags, or punctuation won't block the 
-// algo from continuing to chain.
+// data other than it's core content. We optionally do this on maps to ensure 
+// that, for  example, odd capitalizations, or hashtags, or punctuation won't 
+// block the algo from continuing to chain.
 //
 // Note that this is meant to be run not on an entire tweet, but on the tokens
 // that come after splitting into it's non-whitespace components. Also note that

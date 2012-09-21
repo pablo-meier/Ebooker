@@ -2,7 +2,7 @@
 Package for logging, error reporting, debugging... virtually everything that 
 prints. Like the Android logger, we distinguish between Debug messages, 
 Status messages, and making it easy to add any other kinds as necessary (e.g.
-Android, IIRC, has "Info" messages).
+Android, IIRC, has "Info" messages). Each can be turned on or off as desired.
 
 This also allows us to abstract away the output channel. Currently we only 
 write to stdout, but we could write to a file, a buffer, many at the same 
@@ -18,7 +18,7 @@ import (
 
 // LogMaster is the struct containing all the logging methods, and contains all 
 // the information we'll need to simply "Do the right thing," per its 
-// configuration, whe we ask to write Debug messages, Status messages, etc.
+// configuration, when we ask to write Debug messages, Status messages, etc.
 type LogMaster struct {
 	logger *log.Logger
 	silent bool

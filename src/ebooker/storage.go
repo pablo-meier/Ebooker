@@ -43,7 +43,6 @@ func GetDataHandle(filename string, logger *LogMaster) DataHandle {
 		if err != nil && err.Error() != "table Tweets already exists" {
 			logger.StatusWrite("sql.Open returned unexpected error on DataHandle Aquisition.\n")
 			logger.DebugWrite("Error: %v\n", err)
-			return handle
 		}
 	}
 
@@ -75,7 +74,7 @@ func (dh DataHandle) GetTweetsFromStorage(username string) Tweets {
 		}
 		oldtweets = append(oldtweets, TweetData{idInt, text})
 	}
-	rows.Close()
+
 	sort.Sort(oldtweets)
 	return oldtweets
 }

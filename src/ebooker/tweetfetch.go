@@ -53,7 +53,8 @@ func (tf TweetFetcher) DeepDive(username string) Tweets {
 	queryStr := fmt.Sprintf(baseQuery, username)
 	tweets := tf.getTweetsFromQuery(queryStr)
 
-	// the "- 1" is because max_id is inclusive, and we already have it.
+	// the "- 1" is because max_id is inclusive, and we already have the tweet
+	// represented by this ID.
 	maxId := tweets[tweets.Len()-1].Id - 1
 	for {
 		newQueryBase := strings.Join([]string{queryStr, maxIdParam}, "&")
@@ -123,8 +124,8 @@ func (tf TweetFetcher) getTweetsFromQuery(queryStr string) Tweets {
 }
 
 func appendSlices(slice1, slice2 Tweets) Tweets {
-	newslice := make(Tweets, slice1.Len()+slice2.Len())
-	copy(newslice, slice1)
-	copy(newslice[slice1.Len():], slice2)
-	return newslice
+	for _, tweet := range slice2 {
+        slice1 = append(slice1, tweet)
+	}
+	return slice1
 }
