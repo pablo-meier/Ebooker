@@ -14,7 +14,12 @@ import (
     "time"
 )
 
+
 func main() {
+    ebooker.SendTweet("SrPablo", "THIS IS NOT A TWEET")
+}
+
+func mainwhoops() {
 
     // Parse flags, initialize data...
     var userlist string
