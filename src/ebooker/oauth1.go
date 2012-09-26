@@ -16,6 +16,7 @@ https://dev.twitter.com/docs/auth/pin-based-authorization  - PIN based auth
 package ebooker
 
 import (
+    "encoding/hex"
     "fmt"
     "net/http"
     "strings"
@@ -82,7 +83,30 @@ func (o OAuthRequest) createSignature() {
 //
 // Debated putting this in stringutils, but decided against it because
 // this is purely for OAuth.
-func percentEncode(src string) string {
-    return ""
+func percentEncode(str string) string {
+    asBytes := []byte(str)
+
+    var returnBuf []byte
+    for _, curr := range asBytes {
+        if isLowercaseAscii(curr) || isUppercaseAscii(curr) || isDigit(curr) || isReserved(curr) {
+            returnBuf = append(returnBuf, curr)
+        }
+        var dst, src []byte
+        src = append(src, curr)
+        count, err := hex.Decode(dst, src)
+        if err != nil {
+            fmt.Printf("error decoding %v, returned %v bytes (err is %v)\n", src, count, err)
+        }
+
+        returnBuf = append(returnBuf, 0x25)   // appending '%'
+        returnBuf = append(returnBuf, dst[0])
+        returnBuf = append(returnBuf, dst[1])
+    }
+
+    return string(returnBuf)
 }
 
+func isLowercaseAscii(b byte) bool { return b >= 0x30 && b <= 0x39 }
+func isUppercaseAscii(b byte) bool { return b >= 0x41 && b <= 0x5A }
+func isDigit(b byte) bool { return b >= 0x30 && b <= 0x39 }
+func isReserved(b byte) bool { return b == 0x2D || b == 0x2E || b == 0x5F || b == 0x7E }
