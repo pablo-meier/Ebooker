@@ -245,7 +245,7 @@ func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string,
 	return "", true, "", 0
 }
 
-func (g Generator) CanonicalizeSources() {
+func (g *Generator) CanonicalizeSources() {
 	g.canon = true
 }
 

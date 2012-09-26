@@ -29,18 +29,23 @@ type GenFreqTest struct {
 	prob   float64
 }
 
+// Reduce some boilerplate.
+func makeGenerator(prefix, limit int) *Generator {
+    return CreateGenerator(prefix, limit, &LogMaster{})
+}
+
 // To test AddSeeds, we create a Generator, feed it some text, and ensure:
 //   * The existence of all prefixes of the specified length.
 //   * The existence of appropriate suffixes for a number of the prefixes.
 //   * The correct frequency counts on suffixes.
 func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
-	gen := CreateGenerator(2, 140)
+	gen := makeGenerator(2, 140)
 
 	// Test basic case, prefix length of 2, no tricky tokenization.
 	c.Assert(gen.PrefixLen, gocheck.Equals, 2)
 	c.Assert(gen.CharLimit, gocheck.Equals, 140)
 
-	gen.AddSeeds("Today is a great day to be me")
+	gen.AddSeeds("today is a great day to be me")
 
 	expectedPrefixes := []string{"today is", "is a", "a great", "great day", "day to", "to be"}
 
@@ -48,10 +53,10 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 		assertHasPrefix(gen.Data, expectedPrefixes[i], c)
 	}
 
-	gen.AddSeeds("Today is a terrible day to be me")
-	gen.AddSeeds("Today is a terrible day to be me")
-	gen.AddSeeds("Today is a terrible day to be me")
-	gen.AddSeeds("Today is never so beautiful as tomorrow")
+	gen.AddSeeds("today is a terrible day to be me")
+	gen.AddSeeds("today is a terrible day to be me")
+	gen.AddSeeds("today is a terrible day to be me")
+	gen.AddSeeds("today is never so beautiful as tomorrow")
 
 	// My kingdom for a tuple literal type!!!
 	suffixTests := []SuffixFreqTest{SuffixFreqTest{"today is", "a", 4},
@@ -79,7 +84,8 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 // representations for the same canonical prefix, e.g. "Daddy says" ==
 // "daddy says" == "DADDY SAYS"
 func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
-	gen := CreateGenerator(2, 140)
+	gen := makeGenerator(2, 140)
+	gen.CanonicalizeSources()
 
 	gen.AddSeeds("I've NEVER BEEN so mad")
 	gen.AddSeeds("Ive never \"been\" so sad")
@@ -121,16 +127,16 @@ func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
 //   of times.
 func (s MarkovSuite) TestGenerateText(c *gocheck.C) {
 	// Single sentence case.
-	gen := CreateGenerator(2, 140)
-	gen.AddSeeds("Today is a great day to be alive")
+	gen := makeGenerator(2, 140)
+	gen.AddSeeds("today is a great day to be alive")
 
 	returnText := gen.GenerateFromPrefix("today is")
 
-	c.Assert(returnText, gocheck.Equals, "Today is a great day to be alive")
+	c.Assert(returnText, gocheck.Equals, "today is a great day to be alive")
 
-	gen.AddSeeds("Today is a terrible day to be baking")
-	gen.AddSeeds("Today is a terrible day to be smelling")
-	gen.AddSeeds("Today is a great day to be moulting")
+	gen.AddSeeds("today is a terrible day to be baking")
+	gen.AddSeeds("today is a terrible day to be smelling")
+	gen.AddSeeds("today is a great day to be moulting")
 
 	tests := []GenFreqTest{GenFreqTest{"is a", "great", 0.5},
 		GenFreqTest{"a great", "day", 1.0},

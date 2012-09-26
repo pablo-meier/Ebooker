@@ -16,6 +16,7 @@ https://dev.twitter.com/docs/auth/pin-based-authorization  - PIN based auth
 package ebooker
 
 import (
+    "bytes"
     "encoding/hex"
     "fmt"
     "net/http"
@@ -90,23 +91,22 @@ func percentEncode(str string) string {
     for _, curr := range asBytes {
         if isLowercaseAscii(curr) || isUppercaseAscii(curr) || isDigit(curr) || isReserved(curr) {
             returnBuf = append(returnBuf, curr)
-        }
-        var dst, src []byte
-        src = append(src, curr)
-        count, err := hex.Decode(dst, src)
-        if err != nil {
-            fmt.Printf("error decoding %v, returned %v bytes (err is %v)\n", src, count, err)
-        }
+        } else {
+            dst := make([]byte, 2, 2)
+            hex.Encode(dst, []byte{curr})
+            dst = bytes.ToUpper(dst)
 
-        returnBuf = append(returnBuf, 0x25)   // appending '%'
-        returnBuf = append(returnBuf, dst[0])
-        returnBuf = append(returnBuf, dst[1])
+            returnBuf = append(returnBuf, 0x25)     // appending '%'
+            returnBuf = append(returnBuf, dst[0])
+            returnBuf = append(returnBuf, dst[1])
+        }
     }
 
     return string(returnBuf)
 }
 
-func isLowercaseAscii(b byte) bool { return b >= 0x30 && b <= 0x39 }
-func isUppercaseAscii(b byte) bool { return b >= 0x41 && b <= 0x5A }
-func isDigit(b byte) bool { return b >= 0x30 && b <= 0x39 }
-func isReserved(b byte) bool { return b == 0x2D || b == 0x2E || b == 0x5F || b == 0x7E }
+
+func isLowercaseAscii(b byte) bool { return b >= 97 && b <= 122 }
+func isUppercaseAscii(b byte) bool { return b >= 65 && b <= 90 }
+func isDigit(b byte) bool { return b >= 48 && b <= 57 }
+func isReserved(b byte) bool { return b == 45 || b == 46 || b == 95 || b == 126 }
