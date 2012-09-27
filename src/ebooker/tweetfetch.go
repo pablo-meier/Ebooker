@@ -123,36 +123,27 @@ func (tf TweetFetcher) getTweetsFromQuery(queryStr string) Tweets {
 	return tweets
 }
 
-
 // Calls the Twitter API's "update" function on the account name provided, with 
 // the status text assigned. We assume the user has already provided the app
 // access to their credentials with OAuth; in case they haven't, we ask for them
 // and otherwise drop the request from this scope.
 func SendTweet(user, status string) {
+	//    url := "https://api.twitter.com/1.1/statuses/update.json"
+	url := "http://127.0.0.1:8888"
 
-    client := &http.Client{}
+	oauth := createOAuthRequest(url, status)
 
-//    url := "https://api.twitter.com/1.1/statuses/update.json"
-    url := "http://127.0.0.1:8888"
-    body := fmt.Sprintf("status=%s", html.EscapeString(status))
-    request, err := http.NewRequest("POST", url, strings.NewReader(body))
-    if err != nil {
-        fmt.Printf("sheet, error making a new request!\n")
-    }
-
-    request.Header = getOAuthCredentials(user, request.Header)
-
-    resp, err := client.Do(request)
-    if err != nil {
-        fmt.Printf("Oh sheet, error POSTing!\n")
-    }
-    fmt.Printf("Response was %v\n%v", resp, resp.Body)
+	client := &http.Client{}
+	resp, err := client.Do(oauth.Request)
+	if err != nil {
+		fmt.Printf("Oh sheet, error POSTing!\n")
+	}
+	fmt.Printf("Response was %v\n%v", resp, resp.Body)
 }
-
 
 func appendSlices(slice1, slice2 Tweets) Tweets {
 	for _, tweet := range slice2 {
-        slice1 = append(slice1, tweet)
+		slice1 = append(slice1, tweet)
 	}
 	return slice1
 }

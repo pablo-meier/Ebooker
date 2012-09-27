@@ -17,13 +17,11 @@ type DataHandle struct {
 	logger *LogMaster
 }
 
-
 // Cleanup function for resources used by `storage`. Should defer this call 
 // after obtaining a DataHandle!
 func (dh DataHandle) Cleanup() {
 	dh.handle.Close()
 }
-
 
 // Ensures we've got a valid instance of the database, and if not, creates one
 // with the appropriate tables.
@@ -112,4 +110,3 @@ func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
 	}
 	tx.Commit()
 }
-

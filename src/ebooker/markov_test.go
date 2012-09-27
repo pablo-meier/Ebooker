@@ -31,7 +31,7 @@ type GenFreqTest struct {
 
 // Reduce some boilerplate.
 func makeGenerator(prefix, limit int) *Generator {
-    return CreateGenerator(prefix, limit, &LogMaster{})
+	return CreateGenerator(prefix, limit, &LogMaster{})
 }
 
 // To test AddSeeds, we create a Generator, feed it some text, and ensure:
