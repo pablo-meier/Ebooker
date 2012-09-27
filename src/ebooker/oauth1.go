@@ -13,8 +13,10 @@ https://dev.twitter.com/docs/auth/creating-signature       - Creating a signatur
 https://dev.twitter.com/docs/auth/pin-based-authorization  - PIN based auth
 
 TODO:
-- Consumer secret a big-ass nono. OBTAIN it from users. Store it?
-- test lol
+- access tokens
+- get and fetch secrets, both consumer and app's
+- Logging?
+- RUN IT
 */
 
 package ebooker
@@ -35,20 +37,24 @@ import (
 )
 
 const applicationKey = "MxIkjx9eCC3j1JC8kTig"
+const applicationSecret = "nopenopenope"
 
 type OAuthRequest struct {
 	parameterStringMap map[string]string
 	url                string
 	Request            *http.Request
+
+	consumerSecret string
+    tokenSecret string
 }
 
-func createOAuthRequest(url, status string) *OAuthRequest {
+func createOAuthRequest(url, status, tokensecret string) *OAuthRequest {
 
 	paramMap := map[string]string{
 		"oauth_consumer_key":     applicationKey,
 		"oauth_signature_method": "HMAC-SHA1",
 		"oauth_timestamp":        string(time.Now().Unix()),
-		"oauth_token":            "370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb",
+		"oauth_token":            "370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", // TODO TODO TODO
 		"oauth_version":          "1.0",
 		"status":                 status}
 
@@ -57,7 +63,7 @@ func createOAuthRequest(url, status string) *OAuthRequest {
 		fmt.Printf("error %v in making the request to %v\n", err, url)
 	}
 
-	authdata := OAuthRequest{paramMap, url, req}
+	authdata := OAuthRequest{paramMap, url, req, applicationSecret, tokensecret}
 	authdata.setNonce()
 	authdata.createSignature()
 	authdata.finishHeader()
@@ -90,11 +96,13 @@ func (o *OAuthRequest) createSignature() {
 	hmacSha1 := hmac.New(sha1.New, []byte(signingKey))
 	io.WriteString(hmacSha1, signatureBaseString)
 
-	o.parameterStringMap["oauth_signature"] = base64.NewEncoding("").EncodeToString(hmacSha1.Sum(nil))
+	o.parameterStringMap["oauth_signature"] = base64.StdEncoding.EncodeToString(hmacSha1.Sum(nil))
 }
 
 func (o *OAuthRequest) makeSigningKey() string {
-	return strings.Join([]string{percentEncode(applicationKey), percentEncode("ConsumerSecret!")}, "&")
+    appKey := percentEncode(o.consumerSecret)
+    consumerKey := percentEncode(o.tokenSecret)
+	return strings.Join([]string{appKey, consumerKey}, "&")
 }
 
 func (o *OAuthRequest) makeSignatureBaseString() string {

@@ -131,7 +131,7 @@ func SendTweet(user, status string) {
 	//    url := "https://api.twitter.com/1.1/statuses/update.json"
 	url := "http://127.0.0.1:8888"
 
-	oauth := createOAuthRequest(url, status)
+	oauth := createOAuthRequest(url, status, "")
 
 	client := &http.Client{}
 	resp, err := client.Do(oauth.Request)
