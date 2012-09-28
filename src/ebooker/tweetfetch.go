@@ -127,18 +127,11 @@ func (tf TweetFetcher) getTweetsFromQuery(queryStr string) Tweets {
 // the status text assigned. We assume the user has already provided the app
 // access to their credentials with OAuth; in case they haven't, we ask for them
 // and otherwise drop the request from this scope.
-func SendTweet(user, status string) {
-	//    url := "https://api.twitter.com/1.1/statuses/update.json"
-	url := "http://127.0.0.1:8888"
+func SendTweet(status string) {
+    logger := GetLogMaster(false, true, false)
+	o := OAuth1 { &logger }
 
-	oauth := createOAuthRequest(url, status, "")
-
-	client := &http.Client{}
-	resp, err := client.Do(oauth.Request)
-	if err != nil {
-		fmt.Printf("Oh sheet, error POSTing!\n")
-	}
-	fmt.Printf("Response was %v\n%v", resp, resp.Body)
+	o.sendTweetWithOAuth(status)
 }
 
 func appendSlices(slice1, slice2 Tweets) Tweets {
