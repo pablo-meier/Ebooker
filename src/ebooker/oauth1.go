@@ -13,11 +13,12 @@ https://dev.twitter.com/docs/auth/creating-signature       - Creating a signatur
 https://dev.twitter.com/docs/auth/pin-based-authorization  - PIN based auth
 
 TODO:
-- Make signature creation cleaner. Update uses same functions as tokens.
-- get a rough tweet up
-- get and fetch secrets, both consumer's and app's
 - refactor with mocks for testing?
+- write extensive tests!
+- get a rough tweet up
+- get and fetch secrets dynamically
 - RUN IT
+- Maintain access tokens, refresh tokens? Want to add PIN once, not worry about it.
 */
 
 package ebooker
@@ -51,58 +52,36 @@ type Token struct {
     oauthTokenSecret string
 }
 
-type AuthorizedRequest struct {
-	parameterStringMap map[string]string
-	url                string
-	Request            *http.Request
-
-	consumerSecret string
-    tokenSecret string
-}
-
+// Sends a Tweet
 func (o OAuth1) sendTweetWithOAuth(status string) {
     url := "https://api.twitter.com/1.1/statuses/update.json"
-//	krl := "http://127.0.0.1:8888"
-
-//    params := map[string]string{}
-    params := ""
-    body := ""
-    o.createAuthorizedRequest(url, params, body)
-}
-
-
-func (o OAuth1) createAuthorizedRequest(url, status, tokensecret string) *AuthorizedRequest {
-
-	paramMap := map[string]string{
-		"oauth_consumer_key":     applicationKey,
-		"oauth_signature_method": "HMAC-SHA1",
-		"oauth_timestamp":        string(time.Now().Unix()),
-		"oauth_version":          "1.0",
-		"status":                 status}
-
-	req, err := http.NewRequest("POST", url, strings.NewReader(percentEncode(status)))
-	if err != nil {
-		o.logger.StatusWrite("Error creating request object for POST\n")
-		o.logger.DebugWrite("POST request to url: %v. Error: %v\n", url, err)
-	}
+//	url := "http://127.0.0.1:8888"
 
     requestToken := o.getRequestToken()
     accessToken := o.getAccessToken(requestToken)
 
-    paramMap["oauth_token"] = accessToken.oauthToken
-    tokenSecret := accessToken.oauthTokenSecret
+    urlParams := map[string]string{}
+    bodyParams := map[string]string{ "status" : status }
+    authParams := map[string]string{}
+    req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, accessToken)
+    o.makePostRequest(req)
+}
 
-	authdata := AuthorizedRequest{paramMap, url, req, applicationSecret, tokenSecret}
-	authdata.setNonce()
-	authdata.createSignature()
-	authdata.finishHeader()
+// Gives us an access token to begin an OAuth exhange with Twitter.
+func (o OAuth1) getRequestToken() *Token {
+    url := "https://api.twitter.com/oauth/request_token"
+    urlParams := map[string]string{}
+    bodyParams := map[string]string{}
+    authParams := map[string]string { "oauth_callback" : "oob" }
+    req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, nil)
+    resp := o.makePostRequest(req)
 
-	return &authdata
+    return o.parseTokenResponse(resp)
 }
 
 
-func (o OAuth1) getAccessToken(token *Token) *Token {
-    userFacingUrl := fmt.Sprintf("https://api.twitter.com/oauth/authenticate?oauth_token=%s", token.oauthToken)
+func (o OAuth1) getAccessToken(requestToken *Token) *Token {
+    userFacingUrl := fmt.Sprintf("https://api.twitter.com/oauth/authenticate?oauth_token=%s", requestToken.oauthToken)
 
     fmt.Printf("Please sign in to Twitter at the following URL: %s\n", userFacingUrl)
     fmt.Printf("After successful Sign-in, Twitter will provide you a PIN number.\n")
@@ -112,53 +91,66 @@ func (o OAuth1) getAccessToken(token *Token) *Token {
     fmt.Scanln(pin)
 
     url := "https://dev.twitter.com/docs/api/1/post/oauth/access_token"
-    tokenStr := fmt.Sprintf("oauth_token=%s", token.oauthToken)
-    verifierStr := fmt.Sprintf("oauth_verifier=%d", pin)
-    params := map[string]string { "Authorization" : tokenStr }
+    urlParams := map[string]string{}
+    bodyParams := map[string]string{ "oauth_verifier" : string(pin) }
+    authParams := map[string]string {}
+    req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, requestToken)
+    resp := o.makePostRequest(req)
 
-    accessToken := o.makePostRequest(url, params, verifierStr)
-    return accessToken
+    return o.parseTokenResponse(resp)
 }
 
-// Gives us an access token to begin an OAuth exhange with Twitter.
-func (o OAuth1) getRequestToken() *Token {
-    url := "https://api.twitter.com/oauth/request_token"
-    params := map[string]string { "Authorization" : "oauth_callback=\"oob\"" }
-    requestToken := o.makePostRequest(url, params, "")
-    return requestToken
-}
 
-func (o OAuth1) makePostRequest(url string, params map[string]string, body string) *Token {
-    req, err := http.NewRequest("POST", url, strings.NewReader(body))
+
+// Handles most of the functionality in a way that's (reasonably) easy to call.
+// Makes a POST request to the URL provided, handling the various places you can
+// can put parameters (in the URL, e.g. twitter.com/authorize?token_id=900981,
+// in the body e.g. status="Sup%20Son", or in the "Authorization:" part of the 
+// Header).
+//
+// Understandable why we have it, and God bless crypto, but what a bloody mess.
+func (o OAuth1) createAuthorizedRequest(url string, urlParams, bodyParams, authParams map[string]string, token *Token) *http.Request {
+
+	urlParamString := makeParamStringFromMap(urlParams)
+	bodyString := makeParamStringFromMap(bodyParams)
+
+	urlWithParams := strings.Join([]string{ url, urlParamString }, "?")
+	req, err := http.NewRequest("POST", urlWithParams, strings.NewReader(bodyString))
 	if err != nil {
 		o.logger.StatusWrite("Error creating request object for POST\n")
 		o.logger.DebugWrite("POST request to url: %v. Error: %v\n", url, err)
+		o.logger.DebugWrite("Request is:\n")
+		req.Write(os.Stdout)
 	}
 
-	for k,v := range params {
-	    req.Header.Add(k, v)
-	}
+	authParamMap := map[string]string{
+		"oauth_consumer_key":     applicationKey,
+		"oauth_signature_method": "HMAC-SHA1",
+		"oauth_nonce" :           createNonce(),
+		"oauth_timestamp":        string(time.Now().Unix()),
+		"oauth_version":          "1.0"}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		o.logger.StatusWrite("Error executing POST request\n")
-		o.logger.DebugWrite("POST request to url: %v. Error: %v\n", url, err)
-	}
-	if resp.StatusCode != 200 {
-        o.logger.StatusWrite("Twitter returned non-200 status: %v\n", resp.Status)
-        o.logger.DebugWrite("POST Request: \n")
-        req.Write(os.Stdout)
-        o.logger.DebugWrite("Response:\n")
-        resp.Write(os.Stdout)
-	}
-
-    tokenData, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        o.logger.StatusWrite("Error reading from response body %v\n", err)
+    if token != nil {
+        authParamMap["oauth_token"] = token.oauthToken
+    }
+    for k,v := range authParams {
+        authParamMap[k] = v
     }
 
-    return parseRequestTokenParams(string(tokenData))
+	signature := o.createSignature(&urlParams, &bodyParams, &authParamMap, url, token)
+	authParamMap["oauth_signature"] = signature
+	o.finishHeader(req, authParamMap)
+
+	return req
+}
+
+func makeParamStringFromMap(mp map[string]string) string {
+	var total []string
+	for k,v := range mp {
+        param := strings.Join([]string{ percentEncode(k), percentEncode(v) }, "=")
+        total = append(total, param)
+	}
+	return strings.Join(total, "&")
 }
 
 
@@ -168,8 +160,14 @@ func (o OAuth1) makePostRequest(url string, params map[string]string, body strin
 // oauth_token=NPcudxy0yU5T3tBzho7iCotZ3cnetKwcTIRlX0iwRl0&
 // oauth_token_secret=veNRnAWe6inFuo8o2u8SLLZLjolYDmDP7SzL0YfYI&
 // oauth_callback_confirmed=true
-func parseRequestTokenParams(s string) *Token {
-    params := strings.Split(s, "&")
+func (o OAuth1) parseTokenResponse(resp *http.Response) *Token {
+
+    tokenData, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        o.logger.StatusWrite("Error reading from response body %v\n", err)
+    }
+
+    params := strings.Split(string(tokenData), "&")
     paramMap := map[string]string{}
     for _, param := range params {
         kvPair := strings.Split(param, "=")
@@ -177,7 +175,8 @@ func parseRequestTokenParams(s string) *Token {
     }
 
     if paramMap["oauth_callback_confirmed"] != "true" {
-        fmt.Println()
+        o.logger.StatusWrite("oauth_callback_confirmed not true for response:\n")
+        resp.Write(os.Stdout)
     }
 
     return &Token{ paramMap["oauth_token"], paramMap["oauth_token_secret"] }
@@ -186,7 +185,7 @@ func parseRequestTokenParams(s string) *Token {
 // The "nonce" is a relatively random alphanumeric string that we generate, and 
 // the Twitter server uses to ensure that we're not sending the same request 
 // twice. Their example is 42 characters long, so we'll just emulate that.
-func (o *AuthorizedRequest) setNonce() {
+func createNonce() string {
 	nonceLen := 42 // taken from their example
 	src := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ09123456789")
 
@@ -195,34 +194,36 @@ func (o *AuthorizedRequest) setNonce() {
 		rslt[i] = src[rand.Intn(len(src))]
 	}
 
-	o.parameterStringMap["oauth_nonce"] = string(rslt)
+	return string(rslt)
 }
 
 // Create the request signature. This is done according to the instructions on
 // the API pages linked above.
-func (o *AuthorizedRequest) createSignature() {
+func (o *OAuth1) createSignature(urlParams, bodyParams, authParams *map[string]string, url string, token *Token) string {
 
-	signatureBaseString := o.makeSignatureBaseString()
-	signingKey := o.makeSigningKey()
+    allMaps := []*map[string]string { urlParams, bodyParams, authParams }
+    var allParams map[string]string
+    for _, mp := range allMaps {
+        for k,v := range *mp {
+            allParams[k] = allParams[v]
+        }
+    }
+
+	signatureBaseString := o.makeSignatureBaseString(allParams, url)
+	signingKey := o.makeSigningKey(token)
 
 	hmacSha1 := hmac.New(sha1.New, []byte(signingKey))
 	io.WriteString(hmacSha1, signatureBaseString)
 
-	o.parameterStringMap["oauth_signature"] = base64.StdEncoding.EncodeToString(hmacSha1.Sum(nil))
+	return base64.StdEncoding.EncodeToString(hmacSha1.Sum(nil))
 }
 
-func (o *AuthorizedRequest) makeSigningKey() string {
-    appKey := percentEncode(o.consumerSecret)
-    consumerKey := percentEncode(o.tokenSecret)
-	return strings.Join([]string{appKey, consumerKey}, "&")
-}
-
-func (o *AuthorizedRequest) makeSignatureBaseString() string {
+func (o *OAuth1) makeSignatureBaseString(allParams map[string]string, url string) string {
 	httpMethod := "POST"
 
 	// Percent encode the parameters
 	encoded := map[string]string{}
-	for k, v := range o.parameterStringMap {
+	for k, v := range allParams {
 		encoded[percentEncode(k)] = percentEncode(v)
 	}
 
@@ -239,35 +240,50 @@ func (o *AuthorizedRequest) makeSignatureBaseString() string {
 
 	}
 	parameterString := percentEncode(strings.Join(keys, "&"))
-	encodedUrl := percentEncode(o.url)
+	encodedUrl := percentEncode(url)
 
 	return strings.Join([]string{httpMethod, encodedUrl, parameterString}, "&")
 }
 
-func (o *AuthorizedRequest) finishHeader() {
-	paramMap := o.parameterStringMap
-	authSection := map[string]string{}
-	relevantKeys := []string{
-		"oauth_consumer_key",
-		"oauth_nonce",
-		"oauth_signature",
-		"oauth_signature_method",
-		"oauth_timestamp",
-		"oauth_token",
-		"oauth_version"}
+func (o *OAuth1) makeSigningKey(token *Token) string {
+    appKey := percentEncode(applicationSecret)
+    consumerKey := ""
+    if token != nil {
+        consumerKey = percentEncode(token.oauthTokenSecret)
+    }
+	return strings.Join([]string{appKey, consumerKey}, "&")
+}
 
-	for _, key := range relevantKeys {
-		authSection[key] = paramMap[key]
-	}
-
+func (o *OAuth1) finishHeader(req *http.Request, authParams map[string]string) {
 	var paramstrings []string
-	for k, v := range authSection {
+	for k, v := range authParams {
 		paramstrings = append(paramstrings, fmt.Sprintf("%s=\"%s\"", percentEncode(k), percentEncode(v)))
 	}
 	authString := strings.Join(paramstrings, ", ")
 	authorizationString := strings.Join([]string{"OAuth", authString}, " ")
-	o.Request.Header.Add("Authorization", authorizationString)
+	req.Header.Add("Authorization", authorizationString)
 }
+
+func (o OAuth1) makePostRequest(req *http.Request) *http.Response {
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		o.logger.StatusWrite("Error executing POST request\n")
+        req.Write(os.Stdout)
+	}
+	if resp.StatusCode != 200 {
+        o.logger.StatusWrite("Twitter returned non-200 status: %v\n", resp.Status)
+        o.logger.DebugWrite("POST Request: \n")
+        req.Write(os.Stdout)
+        o.logger.DebugWrite("Response:\n")
+        resp.Write(os.Stdout)
+	}
+
+	return resp
+
+}
+
+
 
 // wow... am I actually implementing this? Instructions from here:
 //
