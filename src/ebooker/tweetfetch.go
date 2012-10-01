@@ -12,6 +12,11 @@ import (
 	"strings"
 )
 
+const applicationKey = "MxIkjx9eCC3j1JC8kTig"
+const applicationSecret = "nopenopenope"
+
+
+
 type TweetFetcher struct {
 	logger *LogMaster
 }
@@ -129,7 +134,7 @@ func (tf TweetFetcher) getTweetsFromQuery(queryStr string) Tweets {
 // and otherwise drop the request from this scope.
 func SendTweet(status string) {
     logger := GetLogMaster(false, true, false)
-	o := OAuth1 { &logger }
+	o := OAuth1 { &logger , applicationKey, applicationSecret }
 
 	o.sendTweetWithOAuth(status)
 }
