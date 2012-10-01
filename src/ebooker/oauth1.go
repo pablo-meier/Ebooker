@@ -40,6 +40,7 @@ import (
 
 type OAuth1 struct {
     logger *LogMaster
+    data   *DataHandle
 
     applicationKey string
     applicationSecret string
@@ -51,14 +52,22 @@ type Token struct {
 }
 
 // Sends a Tweet
-func (o OAuth1) sendTweetWithOAuth(status string) {
+func (o OAuth1) sendTweetWithOAuth(username, status string) {
 
-    requestToken := o.getRequestToken()
-    accessToken := o.getAccessToken(requestToken)
+    accessToken, exists := o.data.getUserAccessToken(username)
 
-    fmt.Println("Access token is %v\n", *accessToken)
+    if !exists {
+        o.logger.StatusWrite("Access token for %v not present! Beginning OAuth...\n", username)
+        requestToken := o.getRequestToken()
+        token := o.getAccessToken(requestToken)
 
-    url := "https://api.twitter.com/1.1/statuses/update.json"
+        o.data.insertUserAccessToken(username, token)
+        accessToken = token
+    }
+
+    o.logger.DebugWrite("Sending Tweet POST request!\n")
+//    url := "https://api.twitter.com/1.1/statuses/update.json"
+    url := "https://api.twitter.com/1/statuses/update.json"
     urlParams := map[string]string{}
     bodyParams := map[string]string{ "status" : status }
     authParams := map[string]string{}
@@ -143,7 +152,6 @@ func (o OAuth1) authorizedRequestWithParams(url string, urlParams, bodyParams, a
     if token != nil {
         authParams["oauth_token"] = token.oauthToken
     }
-
 
 	signature := o.createSignature(urlParams, bodyParams, authParams, url, token)
 	authParams["oauth_signature"] = signature
@@ -272,16 +280,18 @@ func (o *OAuth1) finishHeader(req *http.Request, authParams map[string]string) {
 	authString := strings.Join(paramstrings, ", ")
 	authorizationString := strings.Join([]string{"OAuth", authString}, " ")
 	req.Header.Add("Authorization", authorizationString)
+
+	// For Twitter 1.1 API, update will fail unless this is in Header.
+	req.Header.Add("Content-Type", "application/w-xxx-form-urlencoded")
 }
 
 func (o OAuth1) makePostRequest(req *http.Request) *http.Response {
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	if err != nil {
+	if err != nil || resp == nil {
 		o.logger.StatusWrite("Error executing POST request\n")
-        req.Write(os.Stdout)
-	}
-	if resp.StatusCode != 200 {
+		o.logger.DebugWrite("Request attempted is:\n")
+	} else if resp.StatusCode != 200 {
         o.logger.StatusWrite("Twitter returned non-200 status: %v\n", resp.Status)
         o.logger.DebugWrite("POST Request: \n")
         req.Write(os.Stdout)
@@ -290,9 +300,7 @@ func (o OAuth1) makePostRequest(req *http.Request) *http.Response {
 	}
 
 	return resp
-
 }
-
 
 
 // wow... am I actually implementing this? Instructions from here:

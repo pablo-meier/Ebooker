@@ -21,7 +21,8 @@ var _ = gocheck.Suite(&OAuthSuite{})
 // https://dev.twitter.com/docs/auth/creating-signature
 func (oa OAuthSuite) TestTwitterSignatureExample(c *gocheck.C) {
     logger := GetLogMaster(false, true, false)
-    o := OAuth1{ &logger , "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw" }
+    dh := GetDataHandle("./ebooker_tweets.db", &logger)
+    o := OAuth1{ &logger , &dh, "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw" }
 
     url := "https://api.twitter.com/1/statuses/update.json"
     urlParams := map[string]string{ "include_entities" : "true" }
@@ -51,7 +52,8 @@ func (oa OAuthSuite) TestTwitterSignatureExample(c *gocheck.C) {
 // when requesting a request token, before you get an "oauth_token" value.
 func (oa OAuthSuite) TestSecondTwitterExample(c *gocheck.C) {
     logger := GetLogMaster(false, true, false)
-    o := OAuth1{ &logger , "cChZNFj6T5R0TigYB9yd1w", "L8qq9PZyRg6ieKGEKhZolGC0vJWLw8iEJ88DRdyOg" }
+    dh := GetDataHandle("./ebooker_tweets.db", &logger)
+    o := OAuth1{ &logger , &dh, "cChZNFj6T5R0TigYB9yd1w", "L8qq9PZyRg6ieKGEKhZolGC0vJWLw8iEJ88DRdyOg" }
 
     url := "https://api.twitter.com/oauth/request_token"
     urlParams := map[string]string{}
@@ -75,7 +77,8 @@ func (oa OAuthSuite) TestSecondTwitterExample(c *gocheck.C) {
 
 func (oa OAuthSuite) TestMakingSigningKey(c *gocheck.C) {
     logger := GetLogMaster(false, true, false)
-    o := OAuth1{ &logger , "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw" }
+    dh := GetDataHandle("./ebooker_tweets.db", &logger)
+    o := OAuth1{ &logger , &dh, "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw" }
 
 	token := Token{ "370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb" , "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE" }
 
@@ -90,7 +93,8 @@ func (oa OAuthSuite) TestMakingSigningKey(c *gocheck.C) {
 
 func (oa OAuthSuite) TestTokenStringParsing(c *gocheck.C) {
     logger := GetLogMaster(false, true, false)
-    o := OAuth1{ &logger , "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw" }
+    dh := GetDataHandle("./ebooker_tweets.db", &logger)
+    o := OAuth1{ &logger , &dh, "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw" }
 
     testcase := "oauth_token=NPcudxy0yU5T3tBzho7iCotZ3cnetKwcTIRlX0iwRl0&oauth_token_secret=veNRnAWe6inFuo8o2u8SLLZLjolYDmDP7SzL0YfYI&oauth_callback_confirmed=true"
     token := o.parseTokenData(testcase)

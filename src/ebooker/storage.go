@@ -1,5 +1,7 @@
 /*
 Package that handles persistent storage for the application.
+
+TODO: Replace boilerplate for queries and insertions.
 */
 package ebooker
 
@@ -35,15 +37,15 @@ func GetDataHandle(filename string, logger *LogMaster) DataHandle {
 		return handle
 	}
 
-	sqls := []string{"CREATE TABLE Tweets (Id TEXT NOT NULL, Screen_Name TEXT NOT NULL, Content TEXT NOT NULL)"}
+	sqls := []string{"CREATE TABLE Tweets (Id TEXT NOT NULL, Screen_Name TEXT NOT NULL, Content TEXT NOT NULL)",
+	                 "CREATE TABLE TwitterUsers (Screen_Name TEXT NOT NULL, Token TEXT NOT NULL, Token_Secret TEXT NOT NULL)"}
 	for _, sql := range sqls {
 		_, err = db.Exec(sql)
-		if err != nil && err.Error() != "table Tweets already exists" {
-			logger.StatusWrite("sql.Open returned unexpected error on DataHandle Aquisition.\n")
+		if err != nil && err.Error() != "table Tweets already exists" && err.Error() != "table TwitterUsers already exists" {
+			logger.StatusWrite("sql.Exec returned unexpected error on DataHandle Aquisition.\n")
 			logger.DebugWrite("Error: %v\n", err)
 		}
 	}
-
 	return handle
 }
 
@@ -110,3 +112,64 @@ func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
 	}
 	tx.Commit()
 }
+
+// Retrieves the "oauth_token" and "oauth_token_secret" for a given user, if we
+// have it. If we don't, we state so in the second parameter.
+func (dh DataHandle) getUserAccessToken(username string) (*Token, bool) {
+	db := dh.handle
+
+	queryStr := "SELECT Token, Token_Secret FROM TwitterUsers WHERE Screen_name = ?"
+
+	rows, err := db.Query(queryStr, username)
+	if err != nil {
+		dh.logger.StatusWrite("Unexpected error on query to datastore\n")
+		dh.logger.DebugWrite("Error was %v\n", queryStr, username, err)
+		return nil, false
+	}
+	defer rows.Close()
+
+    var token, tokenSecret string
+    length := 0
+	for rows.Next() {
+		rows.Scan(&token, &tokenSecret)
+		length += 1
+	}
+
+	if length == 0 {
+        return nil, false
+	}
+	return &Token{token, tokenSecret}, true
+}
+
+// Inserts tweets into persistent storage.
+func (dh DataHandle) insertUserAccessToken(username string, token *Token) {
+	db := dh.handle
+
+	tx, err := db.Begin()
+	if err != nil {
+		dh.logger.StatusWrite("Unexpected Error in Aquiring a Transaction to Insert into.\n")
+		dh.logger.DebugWrite("Error is %v\n", err)
+		return
+	}
+
+	insertStr := "INSERT INTO TwitterUsers (Screen_name, Token, Token_Secret) VALUES (?, ?, ?)"
+	dh.logger.DebugWrite("SQL Statement to insert is \"%s\"\n", insertStr)
+
+	stmt, err := tx.Prepare(insertStr)
+	if err != nil {
+		dh.logger.StatusWrite("Unexpected Error in Preparing INSERT Statement.\n")
+		dh.logger.DebugWrite("Error is %v\n", err)
+		return
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(username, token.oauthToken, token.oauthTokenSecret)
+	if err != nil {
+		dh.logger.StatusWrite("Unexpected Error in Executing INSERT Statement.\n")
+		dh.logger.DebugWrite("Error is %v\n", err)
+		return
+	}
+	tx.Commit()
+}
+
+

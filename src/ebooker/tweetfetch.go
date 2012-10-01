@@ -132,11 +132,12 @@ func (tf TweetFetcher) getTweetsFromQuery(queryStr string) Tweets {
 // the status text assigned. We assume the user has already provided the app
 // access to their credentials with OAuth; in case they haven't, we ask for them
 // and otherwise drop the request from this scope.
-func SendTweet(status string) {
+func SendTweet(username, status string) {
     logger := GetLogMaster(false, true, false)
-	o := OAuth1 { &logger , applicationKey, applicationSecret }
+    dh := GetDataHandle("./ebooker_tweets.db", &logger)
+	o := OAuth1 { &logger, &dh, applicationKey, applicationSecret }
 
-	o.sendTweetWithOAuth(status)
+	o.sendTweetWithOAuth(username, status)
 }
 
 func appendSlices(slice1, slice2 Tweets) Tweets {

@@ -16,7 +16,7 @@ import (
 
 
 func main() {
-    ebooker.SendTweet("ce n'est pas un tweet")
+    ebooker.SendTweet("SrPablo", "ce n'est pas un tweet")
 }
 
 func mainwhoops() {
