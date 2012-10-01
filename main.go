@@ -16,7 +16,7 @@ import (
 
 
 func main() {
-    ebooker.SendTweet("This tweet means my hand-baked OAuth1 code in Go worked ^_^")
+    ebooker.SendTweet("ce n'est pas un tweet")
 }
 
 func mainwhoops() {

@@ -13,7 +13,7 @@ import (
 )
 
 const applicationKey = "MxIkjx9eCC3j1JC8kTig"
-const applicationSecret = "nopenopenope"
+const applicationSecret = "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"
 
 
 

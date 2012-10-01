@@ -13,7 +13,6 @@ https://dev.twitter.com/docs/auth/creating-signature       - Creating a signatur
 https://dev.twitter.com/docs/auth/pin-based-authorization  - PIN based auth
 
 TODO:
-- refactor with mocks for testing?
 - write extensive tests!
 - get a rough tweet up
 - get and fetch secrets dynamically
@@ -37,6 +36,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"strconv"
 	"time"
 )
 
@@ -110,10 +110,13 @@ func (o OAuth1) getAccessToken(requestToken *Token) *Token {
 // Understandable why we have it, and God bless crypto, but what a bloody mess.
 func (o OAuth1) createAuthorizedRequest(url string, urlParams, bodyParams, authParams map[string]string, token *Token) *http.Request {
 
+    timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+    o.logger.StatusWrite("Timestamp is %v\n", timestamp)
+
 	authParamMap := map[string]string{
 		"oauth_consumer_key":     o.applicationKey,
 		"oauth_nonce" :           createNonce(),
-		"oauth_timestamp":        string(time.Now().Unix()),
+		"oauth_timestamp":        timestamp,
 		"oauth_signature_method": "HMAC-SHA1",
 		"oauth_version":          "1.0"}
 
@@ -265,7 +268,7 @@ func (o *OAuth1) makeSigningKey(token *Token) string {
 func (o *OAuth1) finishHeader(req *http.Request, authParams map[string]string) {
 	var paramstrings []string
 	for k, v := range authParams {
-		paramstrings = append(paramstrings, fmt.Sprintf("%s=\"%s\"", k, v))
+		paramstrings = append(paramstrings, fmt.Sprintf("%s=\"%s\"", percentEncode(k), percentEncode(v)))
 	}
 	authString := strings.Join(paramstrings, ", ")
 	authorizationString := strings.Join([]string{"OAuth", authString}, " ")
