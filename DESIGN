@@ -1,12 +1,18 @@
--- Critical
+Critical
+--------
 
 * TESTS
 ** Integration test for the actual command-line client: test flags, etc.
+** Mocks for server-calling code, DB?
 * REFACTORING
+** check godoc output, see if module visibility is alright.
+** clean documentation comments, debugging output.
+* PROFILING
+** needless call-by-value causing copying? Where are we slow?
 
+* FEATURE QUALITY
+* Length of tweets is bad, often goes over.
 * Ensure no direct subsets?
-* Improve the actual text generated.
-** Ensure correctness -- some ending conditions are very suspicious.
 
 
 Features

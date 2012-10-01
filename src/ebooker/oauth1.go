@@ -13,11 +13,9 @@ https://dev.twitter.com/docs/auth/creating-signature       - Creating a signatur
 https://dev.twitter.com/docs/auth/pin-based-authorization  - PIN based auth
 
 TODO:
-- write extensive tests!
 - get a rough tweet up
 - get and fetch secrets dynamically
-- RUN IT
-- Maintain access tokens, refresh tokens? Want to add PIN once, not worry about it.
+- store access tokens in a persistence layer.
 */
 
 package ebooker
@@ -54,12 +52,13 @@ type Token struct {
 
 // Sends a Tweet
 func (o OAuth1) sendTweetWithOAuth(status string) {
-    url := "https://api.twitter.com/1.1/statuses/update.json"
-//	url := "http://127.0.0.1:8888"
 
     requestToken := o.getRequestToken()
     accessToken := o.getAccessToken(requestToken)
 
+    fmt.Println("Access token is %v\n", *accessToken)
+
+    url := "https://api.twitter.com/1.1/statuses/update.json"
     urlParams := map[string]string{}
     bodyParams := map[string]string{ "status" : status }
     authParams := map[string]string{}
@@ -67,8 +66,9 @@ func (o OAuth1) sendTweetWithOAuth(status string) {
     o.makePostRequest(req)
 }
 
-// Gives us an access token to begin an OAuth exhange with Twitter.
+// Gives us a request token to begin an OAuth exchange with Twitter.
 func (o OAuth1) getRequestToken() *Token {
+    o.logger.DebugWrite("Making a a POST request for a request token...\n")
     url := "https://api.twitter.com/oauth/request_token"
     urlParams := map[string]string{}
     bodyParams := map[string]string{}
@@ -79,7 +79,7 @@ func (o OAuth1) getRequestToken() *Token {
     return o.parseTokenResponse(resp)
 }
 
-
+// Given a request token, we get an Access token for the user account.
 func (o OAuth1) getAccessToken(requestToken *Token) *Token {
     userFacingUrl := fmt.Sprintf("https://api.twitter.com/oauth/authenticate?oauth_token=%s", requestToken.oauthToken)
 
@@ -87,12 +87,13 @@ func (o OAuth1) getAccessToken(requestToken *Token) *Token {
     fmt.Printf("After successful Sign-in, Twitter will provide you a PIN number.\n")
     fmt.Printf("Please enter it here, without spaces: ")
 
-    var pin uint
-    fmt.Scanln(pin)
+    var pin int
+    fmt.Scanf("%d", &pin)
 
-    url := "https://dev.twitter.com/docs/api/1/post/oauth/access_token"
+    o.logger.DebugWrite("Making a POST request for an Access token...\n")
+    url := "https://api.twitter.com/oauth/access_token"
     urlParams := map[string]string{}
-    bodyParams := map[string]string{ "oauth_verifier" : string(pin) }
+    bodyParams := map[string]string{ "oauth_verifier" : strconv.Itoa(pin) }
     authParams := map[string]string {}
     req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, requestToken)
     resp := o.makePostRequest(req)
@@ -111,8 +112,6 @@ func (o OAuth1) getAccessToken(requestToken *Token) *Token {
 func (o OAuth1) createAuthorizedRequest(url string, urlParams, bodyParams, authParams map[string]string, token *Token) *http.Request {
 
     timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-    o.logger.StatusWrite("Timestamp is %v\n", timestamp)
-
 	authParamMap := map[string]string{
 		"oauth_consumer_key":     o.applicationKey,
 		"oauth_nonce" :           createNonce(),
@@ -170,11 +169,12 @@ func makeParamStringFromMap(mp map[string]string) string {
 // oauth_token_secret=veNRnAWe6inFuo8o2u8SLLZLjolYDmDP7SzL0YfYI&
 // oauth_callback_confirmed=true
 func (o OAuth1) parseTokenResponse(resp *http.Response) *Token {
-    tokenData, err := ioutil.ReadAll(resp.Body)
+    tokenBytes, err := ioutil.ReadAll(resp.Body)
     if err != nil {
         o.logger.StatusWrite("Error reading from response body %v\n", err)
     }
-    return o.parseTokenData(string(tokenData))
+    tokenData := string(tokenBytes)
+    return o.parseTokenData(tokenData)
 }
 
 func (o OAuth1) parseTokenData(tokenData string) *Token {
@@ -187,7 +187,6 @@ func (o OAuth1) parseTokenData(tokenData string) *Token {
 
     if paramMap["oauth_callback_confirmed"] != "true" {
         o.logger.StatusWrite("oauth_callback_confirmed not true for response:\n")
-        //resp.Write(os.Stdout)
     }
 
     return &Token{ paramMap["oauth_token"], paramMap["oauth_token_secret"] }
