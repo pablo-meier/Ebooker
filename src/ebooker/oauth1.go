@@ -15,7 +15,6 @@ https://dev.twitter.com/docs/auth/pin-based-authorization  - PIN based auth
 TODO:
 - get a rough tweet up
 - get and fetch secrets dynamically
-- store access tokens in a persistence layer.
 */
 
 package ebooker
@@ -37,6 +36,27 @@ import (
 	"strconv"
 	"time"
 )
+
+// OAuth key names
+const (
+    OAUTH_CALLBACK         = "oauth_callback"
+    OAUTH_CONSUMER_KEY     = "oauth_consumer_key"
+    OAUTH_NONCE            = "oauth_nonce"
+    OAUTH_SIGNATURE_METHOD = "oauth_signature_method"
+    OAUTH_TIMESTAMP        = "oauth_timestamp"
+    OAUTH_VERIFIER         = "oauth_verifier"
+    OAUTH_VERSION          = "oauth_version"
+
+// Twitter URLS
+    AUTHENTICATE_URL  = "https://api.twitter.com/oauth/authenticate"
+    ACCESS_TOKEN_URL  = "https://api.twitter.com/oauth/access_token"
+    REQUEST_TOKEN_URL = "https://api.twitter.com/oauth/request_token"
+    UPDATE_STATUS_URL = "https://api.twitter.com/1.1/statuses/update.json"
+
+// Other 'naked' values
+    OUT_OF_BAND = "oob"
+)
+
 
 type OAuth1 struct {
     logger *LogMaster
@@ -66,22 +86,22 @@ func (o OAuth1) sendTweetWithOAuth(username, status string) {
     }
 
     o.logger.DebugWrite("Sending Tweet POST request!\n")
-//    url := "https://api.twitter.com/1.1/statuses/update.json"
-    url := "https://api.twitter.com/1/statuses/update.json"
+    url := UPDATE_STATUS_URL
     urlParams := map[string]string{}
     bodyParams := map[string]string{ "status" : status }
     authParams := map[string]string{}
     req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, accessToken)
+//    req.Write(os.Stdout)
     o.makePostRequest(req)
 }
 
 // Gives us a request token to begin an OAuth exchange with Twitter.
 func (o OAuth1) getRequestToken() *Token {
     o.logger.DebugWrite("Making a a POST request for a request token...\n")
-    url := "https://api.twitter.com/oauth/request_token"
+    url := REQUEST_TOKEN_URL
     urlParams := map[string]string{}
     bodyParams := map[string]string{}
-    authParams := map[string]string { "oauth_callback" : "oob" }
+    authParams := map[string]string { OAUTH_CALLBACK : OUT_OF_BAND }
     req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, nil)
     resp := o.makePostRequest(req)
 
@@ -90,7 +110,9 @@ func (o OAuth1) getRequestToken() *Token {
 
 // Given a request token, we get an Access token for the user account.
 func (o OAuth1) getAccessToken(requestToken *Token) *Token {
-    userFacingUrl := fmt.Sprintf("https://api.twitter.com/oauth/authenticate?oauth_token=%s", requestToken.oauthToken)
+
+    tokenUrl := fmt.Sprintf("oauth_token=%s", requestToken.oauthToken)
+    userFacingUrl := strings.Join([]string{AUTHENTICATE_URL, tokenUrl}, "?")
 
     fmt.Printf("Please sign in to Twitter at the following URL: %s\n", userFacingUrl)
     fmt.Printf("After successful Sign-in, Twitter will provide you a PIN number.\n")
@@ -100,9 +122,9 @@ func (o OAuth1) getAccessToken(requestToken *Token) *Token {
     fmt.Scanf("%d", &pin)
 
     o.logger.DebugWrite("Making a POST request for an Access token...\n")
-    url := "https://api.twitter.com/oauth/access_token"
+    url := ACCESS_TOKEN_URL
     urlParams := map[string]string{}
-    bodyParams := map[string]string{ "oauth_verifier" : strconv.Itoa(pin) }
+    bodyParams := map[string]string{ OAUTH_VERIFIER : strconv.Itoa(pin) }
     authParams := map[string]string {}
     req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, requestToken)
     resp := o.makePostRequest(req)
@@ -122,11 +144,11 @@ func (o OAuth1) createAuthorizedRequest(url string, urlParams, bodyParams, authP
 
     timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	authParamMap := map[string]string{
-		"oauth_consumer_key":     o.applicationKey,
-		"oauth_nonce" :           createNonce(),
-		"oauth_timestamp":        timestamp,
-		"oauth_signature_method": "HMAC-SHA1",
-		"oauth_version":          "1.0"}
+		OAUTH_NONCE :           createNonce(),
+		OAUTH_CONSUMER_KEY:     o.applicationKey,
+		OAUTH_TIMESTAMP:        timestamp,
+		OAUTH_SIGNATURE_METHOD: "HMAC-SHA1",
+		OAUTH_VERSION:          "1.0"}
 
     for k,v := range authParams {
         authParamMap[k] = v
@@ -135,16 +157,18 @@ func (o OAuth1) createAuthorizedRequest(url string, urlParams, bodyParams, authP
 }
 
 // We seperate this function from the one above for testing.
-func (o OAuth1) authorizedRequestWithParams(url string, urlParams, bodyParams, authParams map[string]string, token *Token) *http.Request {
+func (o OAuth1) authorizedRequestWithParams(urlRaw string, urlParams, bodyParams, authParams map[string]string, token *Token) *http.Request {
 
 	urlParamString := makeParamStringFromMap(urlParams)
 	bodyString := makeParamStringFromMap(bodyParams)
 
-	urlWithParams := strings.Join([]string{ url, urlParamString }, "?")
+	urlWithParams := strings.Join([]string{ urlRaw, urlParamString }, "?")
+
 	req, err := http.NewRequest("POST", urlWithParams, strings.NewReader(bodyString))
+
 	if err != nil {
 		o.logger.StatusWrite("Error creating request object for POST\n")
-		o.logger.DebugWrite("POST request to url: %v. Error: %v\n", url, err)
+		o.logger.DebugWrite("POST request to url: %v. Error: %v\n", urlRaw, err)
 		o.logger.DebugWrite("Request is:\n")
 		req.Write(os.Stdout)
 	}
@@ -153,7 +177,7 @@ func (o OAuth1) authorizedRequestWithParams(url string, urlParams, bodyParams, a
         authParams["oauth_token"] = token.oauthToken
     }
 
-	signature := o.createSignature(urlParams, bodyParams, authParams, url, token)
+	signature := o.createSignature(urlParams, bodyParams, authParams, urlRaw, token)
 	authParams["oauth_signature"] = signature
 	o.finishHeader(req, authParams)
 
@@ -178,10 +202,12 @@ func makeParamStringFromMap(mp map[string]string) string {
 // oauth_callback_confirmed=true
 func (o OAuth1) parseTokenResponse(resp *http.Response) *Token {
     tokenBytes, err := ioutil.ReadAll(resp.Body)
+    defer resp.Body.Close()
     if err != nil {
         o.logger.StatusWrite("Error reading from response body %v\n", err)
     }
     tokenData := string(tokenBytes)
+    o.logger.StatusWrite("Token data contains: %v\n", tokenData)
     return o.parseTokenData(tokenData)
 }
 
@@ -193,8 +219,10 @@ func (o OAuth1) parseTokenData(tokenData string) *Token {
         paramMap[kvPair[0]] = kvPair[1]
     }
 
-    if paramMap["oauth_callback_confirmed"] != "true" {
-        o.logger.StatusWrite("oauth_callback_confirmed not true for response:\n")
+    if confirmed, exists := paramMap["oauth_callback_confirmed"]; exists {
+        if confirmed != "true" {
+            o.logger.StatusWrite("oauth_callback_confirmed not true for response.\n")
+        }
     }
 
     return &Token{ paramMap["oauth_token"], paramMap["oauth_token_secret"] }
@@ -219,15 +247,7 @@ func createNonce() string {
 // the API pages linked above.
 func (o *OAuth1) createSignature(urlParams, bodyParams, authParams map[string]string, url string, token *Token) string {
 
-    allMaps := []map[string]string { urlParams, bodyParams, authParams }
-    allParams := map[string]string {}
-    for _, mp := range allMaps {
-        for k,v := range mp {
-            allParams[k] = v
-        }
-    }
-
-	signatureBaseString := o.makeSignatureBaseString(allParams, url)
+	signatureBaseString := o.makeSignatureBaseString(urlParams, bodyParams, authParams, url)
 	signingKey := o.makeSigningKey(token)
 
 	hmacSha1 := hmac.New(sha1.New, []byte(signingKey))
@@ -236,8 +256,15 @@ func (o *OAuth1) createSignature(urlParams, bodyParams, authParams map[string]st
 	return base64.StdEncoding.EncodeToString(hmacSha1.Sum(nil))
 }
 
-func (o *OAuth1) makeSignatureBaseString(allParams map[string]string, url string) string {
-	httpMethod := "POST"
+func (o *OAuth1) makeSignatureBaseString(urlParams, bodyParams, authParams map[string]string, url string) string {
+
+    allMaps := []map[string]string { urlParams, bodyParams, authParams }
+    allParams := map[string]string {}
+    for _, mp := range allMaps {
+        for k,v := range mp {
+            allParams[k] = v
+        }
+    }
 
 	// Percent encode the parameters
 	encoded := map[string]string{}
@@ -260,6 +287,7 @@ func (o *OAuth1) makeSignatureBaseString(allParams map[string]string, url string
 	parameterString := percentEncode(strings.Join(keys, "&"))
 	encodedUrl := percentEncode(url)
 
+	httpMethod := "POST"
 	return strings.Join([]string{httpMethod, encodedUrl, parameterString}, "&")
 }
 
@@ -283,18 +311,17 @@ func (o *OAuth1) finishHeader(req *http.Request, authParams map[string]string) {
 
 	// For Twitter 1.1 API, update will fail unless this is in Header.
 	req.Header.Add("Content-Type", "application/w-xxx-form-urlencoded")
+	req.Header.Add("Accept", "*/*")
 }
 
 func (o OAuth1) makePostRequest(req *http.Request) *http.Response {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil || resp == nil {
-		o.logger.StatusWrite("Error executing POST request\n")
-		o.logger.DebugWrite("Request attempted is:\n")
-	} else if resp.StatusCode != 200 {
+		o.logger.StatusWrite("Error executing POST request: %v\n", err)
+		req.Write(os.Stdout)
+	} else if resp.StatusCode != http.StatusOK {
         o.logger.StatusWrite("Twitter returned non-200 status: %v\n", resp.Status)
-        o.logger.DebugWrite("POST Request: \n")
-        req.Write(os.Stdout)
         o.logger.DebugWrite("Response:\n")
         resp.Write(os.Stdout)
 	}

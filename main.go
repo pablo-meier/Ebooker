@@ -16,7 +16,9 @@ import (
 
 
 func main() {
-    ebooker.SendTweet("SrPablo", "ce n'est pas un tweet")
+//    ebooker.SendTweet("SrPablo_ebooks", "ce n'est pas un tweet")
+    ebooker.SendTweet("coffee_son", "coffee")
+//    ebooker.SendTweet("SrPablo", "e")
 }
 
 func mainwhoops() {
@@ -30,10 +32,9 @@ func mainwhoops() {
     flag.IntVar(&prefixLen, "prefixLength", 1, "length of prefix")
     flag.IntVar(&numTweets, "numTweets", 50, "the number of tweets to produce")
     flag.BoolVar(&silent, "silent", true, "Generate only the tweets, without other status information.")
-    flag.BoolVar(&reps, "representations", false, "Treat various representations (e.g. \"Its/it's/IT'S\") as the same in generation.")
+    flag.BoolVar(&reps, "representations", false, "Treat various representations (e.g. \"Its/it's/IT'S\") as equivalent in generation.")
     flag.BoolVar(&debug, "debug", false, "Print debugging information.")
     flag.BoolVar(&timestamps, "timestamps", false, "Print log/debug with timestamps.")
-
 
     flag.Parse()
     rand.Seed(time.Now().UnixNano())

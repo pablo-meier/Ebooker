@@ -3,15 +3,13 @@ package ebooker
 import (
 	"launchpad.net/gocheck"
 
+	"net/http"
 	"regexp"
 )
 
 type OAuthSuite struct{}
 
 var _ = gocheck.Suite(&OAuthSuite{})
-
-
-
 
 
 
@@ -37,12 +35,49 @@ func (oa OAuthSuite) TestTwitterSignatureExample(c *gocheck.C) {
 
 	token := Token{ "370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb" , "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE" }
 
-    req := o.authorizedRequestWithParams(url, urlParams, bodyParams, authParams, &token)
+	// check signature base string
+	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1%2Fstatuses%2Fupdate.json&include_entities%3Dtrue%26oauth_consumer_key%3Dxvz1evFS4wEEPTGEFPHBog%26oauth_nonce%3DkYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1318622958%26oauth_token%3D370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb%26oauth_version%3D1.0%26status%3DHello%2520Ladies%2520%252B%2520Gentlemen%252C%2520a%2520signed%2520OAuth%2520request%2521"
+	c.Assert(o.makeSignatureBaseString(urlParams, bodyParams, authParams, url), gocheck.Equals, baseStringExpected)
 
+
+    // check signature
+    req := o.authorizedRequestWithParams(url, urlParams, bodyParams, authParams, &token)
     authstring := req.Header.Get("Authorization")
     regex, _ := regexp.Compile("oauth_signature=\"([^\"]+)\"")
     signature := regex.FindStringSubmatch(authstring)[1]
     c.Assert(signature, gocheck.Equals, percentEncode("tnnArxj06cWHq44gCs1OSKk/jLY="))
+}
+
+
+// Making this example from the OAuth tool for update.json, since it's still getting hung up on it.
+func (oa OAuthSuite) TestAuthOnUpdate(c *gocheck.C) {
+
+    logger := GetLogMaster(false, true, false)
+    dh := GetDataHandle("./ebooker_tweets.db", &logger)
+    o := OAuth1{ &logger , &dh, "MxIkjx9eCC3j1JC8kTig", "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0" }
+
+    url := "https://api.twitter.com/1.1/statuses/update.json"
+    urlParams := map[string]string{}
+    bodyParams := map[string]string{ "status" : "IMMATWEET" }
+    authParams := map[string]string {
+        "oauth_consumer_key":     "MxIkjx9eCC3j1JC8kTig",
+		"oauth_nonce":            "1bd818f5d8e62ceb172aad5bae030fd3",
+		"oauth_signature_method": "HMAC-SHA1",
+        "oauth_token":            "27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt",
+		"oauth_timestamp":        "1349163796",
+		"oauth_version":          "1.0" }
+
+	token := Token{ "27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt" , "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E" }
+
+	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fupdate.json&oauth_consumer_key%3DMxIkjx9eCC3j1JC8kTig%26oauth_nonce%3D1bd818f5d8e62ceb172aad5bae030fd3%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1349163796%26oauth_token%3D27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt%26oauth_version%3D1.0%26status%3DIMMATWEET"
+	c.Assert(o.makeSignatureBaseString(urlParams, bodyParams, authParams, url), gocheck.Equals, baseStringExpected)
+
+    // check signature
+    req := o.authorizedRequestWithParams(url, urlParams, bodyParams, authParams, &token)
+    authstring := req.Header.Get("Authorization")
+    regex, _ := regexp.Compile("oauth_signature=\"([^\"]+)\"")
+    signature := regex.FindStringSubmatch(authstring)[1]
+    c.Assert(signature, gocheck.Equals, "Jk3epY305uVOD9dRFdqpioYBXHA%3D")
 }
 
 // This example comes from 
@@ -68,12 +103,43 @@ func (oa OAuthSuite) TestSecondTwitterExample(c *gocheck.C) {
 
     req := o.authorizedRequestWithParams(url, urlParams, bodyParams, authParams, nil)
 
+    checkSignature(req, "F1Li3tvehgcraF8DMJ7OyxO4w9Y%3D", c)
+}
+
+func (oa OAuthSuite) TestStatusUpdateWithoutEncoding(c *gocheck.C) {
+    logger := GetLogMaster(false, true, false)
+    dh := GetDataHandle("./ebooker_tweets.db", &logger)
+    o := OAuth1{ &logger , &dh, "MxIkjx9eCC3j1JC8kTig", "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0" }
+
+    url := "https://api.twitter.com/1.1/statuses/update.json"
+    urlParams := map[string]string{}
+    bodyParams := map[string]string{ "status" : "IMMATWEET" }
+    authParams := map[string]string {
+        "oauth_consumer_key":     "MxIkjx9eCC3j1JC8kTig",
+		"oauth_nonce":            "ef1efdb1c6b03c70ae2800543caae04d",
+		"oauth_signature_method": "HMAC-SHA1",
+		"oauth_token":            "27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt",
+		"oauth_timestamp":        "1349229371",
+		"oauth_version":          "1.0" }
+
+	token := Token{ "27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt" , "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E" }
+
+	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fupdate.json&oauth_consumer_key%3DMxIkjx9eCC3j1JC8kTig%26oauth_nonce%3Def1efdb1c6b03c70ae2800543caae04d%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1349229371%26oauth_token%3D27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt%26oauth_version%3D1.0%26status%3DIMMATWEET"
+
+	c.Assert(o.makeSignatureBaseString(urlParams, bodyParams, authParams, url), gocheck.Equals, baseStringExpected)
+
+    req := o.authorizedRequestWithParams(url, urlParams, bodyParams, authParams, &token)
+//    req.Write(os.Stdout)
+//    c.Assert(true, gocheck.Equals, false)
+    checkSignature(req, "P6IKBc5LPV7Cz%2F%2FXnjpQuCisgek%3D", c)
+}
+
+func checkSignature(req *http.Request, expected string, c *gocheck.C) {
     authstring := req.Header.Get("Authorization")
     regex, _ := regexp.Compile("oauth_signature=\"([^\"]+)\"")
     signature := regex.FindStringSubmatch(authstring)[1]
-    c.Assert(signature, gocheck.Equals, "F1Li3tvehgcraF8DMJ7OyxO4w9Y%3D")
+    c.Assert(signature, gocheck.Equals, expected)
 }
-
 
 func (oa OAuthSuite) TestMakingSigningKey(c *gocheck.C) {
     logger := GetLogMaster(false, true, false)

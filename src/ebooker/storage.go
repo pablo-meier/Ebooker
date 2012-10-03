@@ -91,7 +91,6 @@ func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
 	}
 
 	insertStr := "INSERT INTO Tweets (Id, Screen_name, Content) VALUES (?, ?, ?)"
-	dh.logger.DebugWrite("SQL Statement to insert is \"%s\"\n", insertStr)
 
 	stmt, err := tx.Prepare(insertStr)
 	if err != nil {
