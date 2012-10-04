@@ -59,7 +59,6 @@ const (
 
 type OAuth1 struct {
     logger *LogMaster
-    data   *DataHandle
 
     applicationKey string
     applicationSecret string
@@ -70,38 +69,16 @@ type Token struct {
     oauthTokenSecret string
 }
 
-// Sends a Tweet
-func (o OAuth1) sendTweetWithOAuth(username, status string) {
-
-    accessToken, exists := o.data.getUserAccessToken(username)
-
-    if !exists {
-        o.logger.StatusWrite("Access token for %v not present! Beginning OAuth...\n", username)
-        requestToken := o.getRequestToken()
-        token := o.getAccessToken(requestToken)
-
-        o.data.insertUserAccessToken(username, token)
-        accessToken = token
-    }
-
-    o.logger.DebugWrite("Sending Tweet POST request!\n")
-    url := UPDATE_STATUS_URL
-    urlParams := map[string]string{}
-    bodyParams := map[string]string{ "status" : status }
-    authParams := map[string]string{}
-    req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, accessToken)
-    o.makePostRequest(req)
-}
-
 // Gives us a request token to begin an OAuth exchange with Twitter.
 func (o OAuth1) getRequestToken() *Token {
     o.logger.DebugWrite("Making a a POST request for a request token...\n")
     url := REQUEST_TOKEN_URL
+    method := "POST"
     urlParams := map[string]string{}
     bodyParams := map[string]string{}
     authParams := map[string]string { OAUTH_CALLBACK : OUT_OF_BAND }
-    req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, nil)
-    resp := o.makePostRequest(req)
+    req := o.createAuthorizedRequest(url, method, urlParams, bodyParams, authParams, nil)
+    resp := o.executeRequest(req)
 
     return o.parseTokenResponse(resp)
 }
@@ -121,11 +98,12 @@ func (o OAuth1) getAccessToken(requestToken *Token) *Token {
 
     o.logger.DebugWrite("Making a POST request for an Access token...\n")
     url := ACCESS_TOKEN_URL
+    method := "POST"
     urlParams := map[string]string{}
     bodyParams := map[string]string{ OAUTH_VERIFIER : strconv.Itoa(pin) }
     authParams := map[string]string {}
-    req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, requestToken)
-    resp := o.makePostRequest(req)
+    req := o.createAuthorizedRequest(url, method, urlParams, bodyParams, authParams, requestToken)
+    resp := o.executeRequest(req)
 
     return o.parseTokenResponse(resp)
 }
@@ -138,7 +116,9 @@ func (o OAuth1) getAccessToken(requestToken *Token) *Token {
 // Header).
 //
 // Understandable why we have it, and God bless crypto, but what a bloody mess.
-func (o OAuth1) createAuthorizedRequest(url string, urlParams, bodyParams, authParams map[string]string, token *Token) *http.Request {
+func (o OAuth1) createAuthorizedRequest(url, method string,
+                                        urlParams, bodyParams, authParams map[string]string,
+                                        token *Token) *http.Request {
 
     timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	authParamMap := map[string]string{
@@ -151,22 +131,25 @@ func (o OAuth1) createAuthorizedRequest(url string, urlParams, bodyParams, authP
     for k,v := range authParams {
         authParamMap[k] = v
     }
-    return o.authorizedRequestWithParams(url, urlParams, bodyParams, authParamMap, token)
+
+    return o.authorizedRequestWithParams(url, method, urlParams, bodyParams, authParamMap, token)
 }
 
 // We seperate this function from the one above for testing.
-func (o OAuth1) authorizedRequestWithParams(urlRaw string, urlParams, bodyParams, authParams map[string]string, token *Token) *http.Request {
+func (o OAuth1) authorizedRequestWithParams(urlRaw, method string,
+                                            urlParams, bodyParams, authParams map[string]string,
+                                            token *Token) *http.Request {
 
 	urlParamString := makeParamStringFromMap(urlParams)
 	bodyString := makeParamStringFromMap(bodyParams)
 
 	urlWithParams := strings.Join([]string{ urlRaw, urlParamString }, "?")
 
-	req, err := http.NewRequest("POST", urlWithParams, strings.NewReader(bodyString))
+	req, err := http.NewRequest(method, urlWithParams, strings.NewReader(bodyString))
 
 	if err != nil {
-		o.logger.StatusWrite("Error creating request object for POST\n")
-		o.logger.DebugWrite("POST request to url: %v. Error: %v\n", urlRaw, err)
+		o.logger.StatusWrite("Error creating request object for %v\n", method)
+		o.logger.DebugWrite("%v request to url: %v. Error: %v\n", method, urlRaw, err)
 		o.logger.DebugWrite("Request is:\n")
 		req.Write(os.Stdout)
 	}
@@ -175,7 +158,7 @@ func (o OAuth1) authorizedRequestWithParams(urlRaw string, urlParams, bodyParams
         authParams["oauth_token"] = token.oauthToken
     }
 
-	signature := o.createSignature(urlParams, bodyParams, authParams, urlRaw, token)
+	signature := o.createSignature(urlParams, bodyParams, authParams, urlRaw, method, token)
 	authParams["oauth_signature"] = signature
 	o.finishHeader(req, authParams)
 
@@ -242,9 +225,9 @@ func createNonce() string {
 
 // Create the request signature. This is done according to the instructions on
 // the API pages linked above.
-func (o *OAuth1) createSignature(urlParams, bodyParams, authParams map[string]string, url string, token *Token) string {
+func (o *OAuth1) createSignature(urlParams, bodyParams, authParams map[string]string, url, method string, token *Token) string {
 
-	signatureBaseString := o.makeSignatureBaseString(urlParams, bodyParams, authParams, url)
+	signatureBaseString := o.makeSignatureBaseString(urlParams, bodyParams, authParams, url, method)
 	signingKey := o.makeSigningKey(token)
 
 	hmacSha1 := hmac.New(sha1.New, []byte(signingKey))
@@ -253,7 +236,7 @@ func (o *OAuth1) createSignature(urlParams, bodyParams, authParams map[string]st
 	return base64.StdEncoding.EncodeToString(hmacSha1.Sum(nil))
 }
 
-func (o *OAuth1) makeSignatureBaseString(urlParams, bodyParams, authParams map[string]string, url string) string {
+func (o *OAuth1) makeSignatureBaseString(urlParams, bodyParams, authParams map[string]string, url, method string) string {
 
     allMaps := []map[string]string { urlParams, bodyParams, authParams }
     allParams := map[string]string {}
@@ -284,8 +267,7 @@ func (o *OAuth1) makeSignatureBaseString(urlParams, bodyParams, authParams map[s
 	parameterString := percentEncode(strings.Join(keys, "&"))
 	encodedUrl := percentEncode(url)
 
-	httpMethod := "POST"
-	return strings.Join([]string{httpMethod, encodedUrl, parameterString}, "&")
+	return strings.Join([]string{method, encodedUrl, parameterString}, "&")
 }
 
 func (o *OAuth1) makeSigningKey(token *Token) string {
@@ -311,7 +293,7 @@ func (o *OAuth1) finishHeader(req *http.Request, authParams map[string]string) {
 	req.Header.Add("Accept", "*/*")
 }
 
-func (o OAuth1) makePostRequest(req *http.Request) *http.Response {
+func (o OAuth1) executeRequest(req *http.Request) *http.Response {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil || resp == nil {

@@ -9,6 +9,7 @@ import (
 
     "flag"
     "fmt"
+    "os"
     "math/rand"
     "strings"
     "time"
@@ -16,10 +17,6 @@ import (
 
 
 func main() {
-    ebooker.SendTweet("SrPablo_ebooks", "ce n'est pas un tweet")
-}
-
-func mainwhoops() {
 
     // Parse flags, initialize data...
     var userlist string
@@ -49,7 +46,7 @@ func mainwhoops() {
         logger.StatusWrite("Reading from persistent storage for %s...\n", username)
         oldTweets := dh.GetTweetsFromStorage(username)
 
-        tf := ebooker.GetTweetFetcher(&logger)
+        tf := ebooker.GetTweetFetcher(&logger, &dh)
 
         var newTweets ebooker.Tweets
         if len(oldTweets) == 0 {
@@ -58,7 +55,7 @@ func mainwhoops() {
         } else {
             logger.StatusWrite("Found %d tweets for %s.\n", len(oldTweets), username)
             newest := oldTweets[len(oldTweets) - 1]
-            newTweets = tf.GetTimelineFromRequest(username, &newest)
+            newTweets = tf.GetRecentTimeline(username, &newest)
         }
 
         // update the persistent storage
@@ -67,6 +64,11 @@ func mainwhoops() {
 
 		copyFrom(&sourcestrings, &oldTweets)
 		copyFrom(&sourcestrings, &newTweets)
+    }
+
+    if len(sourcestrings) == 0 {
+        logger.StatusWrite("Can't write nonsense tweets, as we don't have a corpus!\n")
+        os.Exit(1)
     }
 
 	// fetch or create a Generator
