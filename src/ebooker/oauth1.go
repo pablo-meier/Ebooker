@@ -13,7 +13,6 @@ https://dev.twitter.com/docs/auth/creating-signature       - Creating a signatur
 https://dev.twitter.com/docs/auth/pin-based-authorization  - PIN based auth
 
 TODO:
-- get a rough tweet up
 - get and fetch secrets dynamically
 */
 
@@ -91,7 +90,6 @@ func (o OAuth1) sendTweetWithOAuth(username, status string) {
     bodyParams := map[string]string{ "status" : status }
     authParams := map[string]string{}
     req := o.createAuthorizedRequest(url, urlParams, bodyParams, authParams, accessToken)
-//    req.Write(os.Stdout)
     o.makePostRequest(req)
 }
 
@@ -207,7 +205,6 @@ func (o OAuth1) parseTokenResponse(resp *http.Response) *Token {
         o.logger.StatusWrite("Error reading from response body %v\n", err)
     }
     tokenData := string(tokenBytes)
-    o.logger.StatusWrite("Token data contains: %v\n", tokenData)
     return o.parseTokenData(tokenData)
 }
 
@@ -310,7 +307,7 @@ func (o *OAuth1) finishHeader(req *http.Request, authParams map[string]string) {
 	req.Header.Add("Authorization", authorizationString)
 
 	// For Twitter 1.1 API, update will fail unless this is in Header.
-	req.Header.Add("Content-Type", "application/w-xxx-form-urlencoded")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Accept", "*/*")
 }
 

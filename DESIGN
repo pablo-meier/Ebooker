@@ -21,6 +21,7 @@ Features
 * Authorization
 * Twitter write privileges ("driverless" mode)
 * ebooker on protected accounts (e.g. @theletterjeff, @SadeAtoyebi)
+** Use authorized requests for fetches as well, to prevent rate-limiting.
 
 ----
 * Actually run as a damn service.

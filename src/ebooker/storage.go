@@ -152,7 +152,6 @@ func (dh DataHandle) insertUserAccessToken(username string, token *Token) {
 	}
 
 	insertStr := "INSERT INTO TwitterUsers (Screen_name, Token, Token_Secret) VALUES (?, ?, ?)"
-	dh.logger.DebugWrite("SQL Statement to insert is \"%s\"\n", insertStr)
 
 	stmt, err := tx.Prepare(insertStr)
 	if err != nil {
