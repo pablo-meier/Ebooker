@@ -38,7 +38,7 @@ func GetDataHandle(filename string, logger *LogMaster) DataHandle {
 	}
 
 	sqls := []string{"CREATE TABLE Tweets (Id TEXT NOT NULL, Screen_Name TEXT NOT NULL, Content TEXT NOT NULL)",
-	                 "CREATE TABLE TwitterUsers (Screen_Name TEXT NOT NULL, Token TEXT NOT NULL, Token_Secret TEXT NOT NULL)"}
+		"CREATE TABLE TwitterUsers (Screen_Name TEXT NOT NULL, Token TEXT NOT NULL, Token_Secret TEXT NOT NULL)"}
 	for _, sql := range sqls {
 		_, err = db.Exec(sql)
 		if err != nil && err.Error() != "table Tweets already exists" && err.Error() != "table TwitterUsers already exists" {
@@ -127,15 +127,15 @@ func (dh DataHandle) getUserAccessToken(username string) (*Token, bool) {
 	}
 	defer rows.Close()
 
-    var token, tokenSecret string
-    length := 0
+	var token, tokenSecret string
+	length := 0
 	for rows.Next() {
 		rows.Scan(&token, &tokenSecret)
 		length += 1
 	}
 
 	if length == 0 {
-        return nil, false
+		return nil, false
 	}
 	return &Token{token, tokenSecret}, true
 }
@@ -169,5 +169,3 @@ func (dh DataHandle) insertUserAccessToken(username string, token *Token) {
 	}
 	tx.Commit()
 }
-
-
