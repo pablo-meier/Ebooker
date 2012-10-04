@@ -13,11 +13,11 @@ Critical
 * FEATURE QUALITY
 * Length of tweets is bad, often goes over.
 * Ensure no direct subsets?
+* HTML encoding needs to be undone, e.g. "&gt;" -> ">"
 
 
 Features
 --------
-----
 * Actually run as a damn service.
 ** Consider goroutines to handle calls.
 
