@@ -7,6 +7,7 @@ Critical
 * REFACTORING
 ** check godoc output, see if module visibility is alright.
 ** clean documentation comments, debugging output.
+** "Effective Go" -- look to naming, visibility
 * PROFILING
 ** needless call-by-value causing copying? Where are we slow?
 
