@@ -43,7 +43,7 @@ Examples of awesome Markov Twitter bots:
 @RandomTedTalks, @kpich_ebooks, @markov_bible
 */
 
-package ebooker
+package ebooks
 
 import (
 	"math/rand"

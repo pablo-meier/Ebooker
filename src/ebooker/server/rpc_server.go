@@ -5,7 +5,7 @@ easily. See --help for all the settings.
 package main
 
 import (
-    "ebooker"
+    "ebooker/ebooks"
 
     "errors"
     "flag"
@@ -28,8 +28,8 @@ func main() {
 
     rand.Seed(time.Now().UnixNano())
 
-    logger := ebooker.GetLogMaster(silent, debug, timestamps)
-    dh := ebooker.GetDataHandle("./ebooker_tweets.db", &logger)
+    logger := ebooks.GetLogMaster(silent, debug, timestamps)
+    dh := ebooks.GetDataHandle("./ebooker_tweets.db", &logger)
     defer dh.Cleanup()
 
     ebRequest := EbookerRequest{ &logger, &dh }
@@ -44,8 +44,8 @@ func main() {
 
 
 type EbookerRequest struct {
-    logger *ebooker.LogMaster
-    dh     *ebooker.DataHandle
+    logger *ebooks.LogMaster
+    dh     *ebooks.DataHandle
 }
 
 
@@ -66,9 +66,9 @@ func (eb *EbookerRequest) GenerateTweets(args *GenerateTweetsArgs, out *Tweets) 
         eb.logger.StatusWrite("Reading from persistent storage for %s...\n", username)
         oldTweets := eb.dh.GetTweetsFromStorage(username)
 
-        tf := ebooker.GetTweetFetcher(eb.logger, eb.dh)
+        tf := ebooks.GetTweetFetcher(eb.logger, eb.dh)
 
-        var newTweets ebooker.Tweets
+        var newTweets ebooks.Tweets
         if len(oldTweets) == 0 {
             eb.logger.StatusWrite("Found no tweets for %s, doing a deep dive to retrieve their history.\n", username)
             newTweets = tf.DeepDive(username)
@@ -93,7 +93,7 @@ func (eb *EbookerRequest) GenerateTweets(args *GenerateTweetsArgs, out *Tweets) 
     }
 
 	// fetch or create a Generator
-	gen := ebooker.CreateGenerator(args.prefixLen, 140, eb.logger)
+	gen := ebooks.CreateGenerator(args.prefixLen, 140, eb.logger)
 	if args.reps {
 		gen.CanonicalizeSources()
 	}
@@ -114,7 +114,7 @@ func (eb *EbookerRequest) GenerateTweets(args *GenerateTweetsArgs, out *Tweets) 
 }
 
 
-func copyFrom(dst *[]string, src *ebooker.Tweets) {
+func copyFrom(dst *[]string, src *ebooks.Tweets) {
 	for _, str := range *src {
 		*dst = append(*dst, str.Text)
 	}

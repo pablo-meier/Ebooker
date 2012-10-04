@@ -1,4 +1,4 @@
-package ebooker
+package ebooks
 
 import (
 	"launchpad.net/gocheck"

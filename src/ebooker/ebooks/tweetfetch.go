@@ -5,7 +5,7 @@ TODO:
 - Access tokens (default to our own?)
 - Turn responses into Tweets
 */
-package ebooker
+package ebooks
 
 import (
 	"encoding/json"

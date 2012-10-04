@@ -3,7 +3,7 @@ A lot of string manipulation happens in ebooker: We have to strip replies, we
 have to uppercase and lowercase for various effects, create new hashtags. This
 package lets us write our transformations.
 */
-package ebooker
+package ebooks
 
 import (
 	"regexp"

@@ -2,10 +2,10 @@
 
 build:
 	[ -d bin ] || mkdir -p bin
-	go build -o bin/ebooker 
+	go build -o bin/ebooker_server ebooker/server
 
 test:
-	go test ebooker
+	go test ebooker/ebooks
 
 clean:
 	rm -rf bin/*

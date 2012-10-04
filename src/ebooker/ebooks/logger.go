@@ -8,7 +8,7 @@ This also allows us to abstract away the output channel. Currently we only
 write to stdout, but we could write to a file, a buffer, many at the same 
 time, etc.
 */
-package ebooker
+package ebooks
 
 import (
 	"log"

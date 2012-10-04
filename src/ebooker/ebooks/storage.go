@@ -3,7 +3,7 @@ Package that handles persistent storage for the application.
 
 TODO: Replace boilerplate for queries and insertions.
 */
-package ebooker
+package ebooks
 
 import (
 	_ "github.com/mattn/go-sqlite3"

@@ -16,7 +16,7 @@ TODO:
 - get and fetch secrets dynamically
 */
 
-package ebooker
+package ebooks
 
 import (
 	"bytes"
