@@ -5,35 +5,42 @@ easily. Requires a running service to connect to.
 package main
 
 import (
+	"ebooker/defs"
+
+	"flag"
 	"fmt"
-	//"flag"
 	"log"
 	"net/rpc"
+	"strings"
 )
 
-type GenerateTweetsArgs struct {
-	Users     []string
-	NumTweets int
-	Reps      bool
-	PrefixLen int
-}
-
 func main() {
-	client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
+
+	var port, userlist string
+	var numTweets, prefixLen int
+	var reps bool
+	flag.StringVar(&port, "port", "8998", "Port to run the server on.")
+	flag.StringVar(&userlist, "users", "SrPablo,__MICHAELJ0RDAN", "Comma-seperated list of users to read from (no spaces)")
+	flag.IntVar(&numTweets, "numTweets", 15, "Number of tweets to generate.")
+	flag.IntVar(&prefixLen, "prefixLen", 2, "Length of generation prefix. Smaller = more random, Larger = more accurate.")
+	flag.BoolVar(&reps, "representations", false, "Treat all forms of a text (.e.g \"It's/ITS/its'\") as equivalent.")
+	flag.Parse()
+
+	client, err := rpc.DialHTTP("tcp", "127.0.0.1:"+port)
+	defer client.Close()
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
 
-	numTweets := 15
-	args := GenerateTweetsArgs{[]string{"SrPablo"}, numTweets, false, 2}
+	args := defs.GenParams{strings.Split(userlist, ","), numTweets, reps, prefixLen}
 	resp := make([]string, numTweets)
 
-	err = client.Call("EbookerRequest.GenerateTweets", &args, &resp)
+	err = client.Call("Ebooker.GenerateTweets", &args, &resp)
 	if err != nil {
 		log.Fatal("generate tweets error:", err)
 	}
 
-	for _, str := range resp {
-		fmt.Println(str)
+	for i := range resp {
+		fmt.Printf("%v\n", resp[i])
 	}
 }

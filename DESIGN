@@ -1,3 +1,19 @@
+* Write a frontend "client" that serves like the current script does.
+* Another frontend is the webapp.
+
+Factor out storage of tweets/tokens to ebooker/server?
+
+
+API
+===
+
+GenerateTweets(genParams)
+GenerateWithAuthorization(genParams, authParams)
+CreateNewBot(name, authParams, genparams, schedule)
+SetBotSchedule(name, schedule)
+
+
+
 Critical
 --------
 
@@ -8,6 +24,7 @@ Critical
 ** check godoc output, see if module visibility is alright.
 ** clean documentation comments, debugging output.
 ** "Effective Go" -- look to naming, visibility
+** package comments!
 * PROFILING
 ** needless call-by-value causing copying? Where are we slow?
 
@@ -19,14 +36,7 @@ Critical
 
 Features
 --------
-* Actually run as a damn service.
-** Consider goroutines to handle calls.
-
-* Persistent storage of Generators.
-* Write a frontend "client" that serves like the current script does.
-* Another frontend is the webapp.
-* Handle asyncronous fetches from Twitter, generation, e.g.
-
+* Persistent storage of Generators? Custom binary format?
 ----
 * "Sweeps," a set of filters that you can apply to the text, 
 ** Capitalization.
@@ -41,4 +51,5 @@ Features
 *** Chuck Grassleying #CombineWordsIntoOneTag (note that you'd probably want to 
      remove a word from whatever you contract together to make it as 
      weird-as-hell as possible).
-
+----
+* "Real" Database backend, like Postgres?

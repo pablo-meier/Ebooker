@@ -5,58 +5,63 @@ capabilities.
 package main
 
 import (
+	"ebooker/defs"
 	"ebooker/ebooks"
 
 	"errors"
 	"flag"
-	"log"
 	"math/rand"
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
 	"time"
 )
 
 // Starts the service
 func main() {
 
-	var silent, debug, timestamps bool
-	flag.BoolVar(&silent, "silent", true, "Generate only the tweets, without other status information.")
+	//	var silent bool
+	var debug, timestamps bool
+	var port string
+	//	flag.BoolVar(&silent, "silent", true, "Generate only the tweets, without other status information.")
 	flag.BoolVar(&debug, "debug", false, "Print debugging information.")
 	flag.BoolVar(&timestamps, "timestamps", false, "Print log/debug with timestamps.")
+	flag.StringVar(&port, "port", "8998", "Port to run the server on.")
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
 
-	logger := ebooks.GetLogMaster(silent, debug, timestamps)
+	// Silent default to false, since there isn't really an aesthetic need to do so
+	logger := ebooks.GetLogMaster(false, debug, timestamps)
 	dh := ebooks.GetDataHandle("./ebooker_tweets.db", &logger)
 	defer dh.Cleanup()
 
-	ebRequest := EbookerRequest{&logger, &dh}
-	rpc.Register(&ebRequest)
+	logger.StatusWrite("Welcome to EBOOKER -- let's make some nonsense ^_^\n")
+	logger.StatusWrite("Registering Ebooker RPC..\n")
+	eb := Ebooker{&logger, &dh}
+	rpc.Register(&eb)
 	rpc.HandleHTTP()
 
-	l, e := net.Listen("tcp", ":1234")
+	logger.StatusWrite("Starting up on port %s\n", port)
+	l, e := net.Listen("tcp", ":"+port)
 	if e != nil {
-		log.Fatal("listen error:", e)
+		logger.StatusWrite("Listen error: %v.\nTerminating...", e)
+		os.Exit(1)
 	}
 	http.Serve(l, nil)
 }
 
-type EbookerRequest struct {
+// Ebooker is the provider of the service, and maintains its internal resources
+// in this struct.
+type Ebooker struct {
 	logger *ebooks.LogMaster
 	dh     *ebooks.DataHandle
 }
 
-type Tweets []string
-type GenerateTweetsArgs struct {
-	Users     []string
-	NumTweets int
-	Reps      bool
-	PrefixLen int
-}
-
-func (eb *EbookerRequest) GenerateTweets(args *GenerateTweetsArgs, out *Tweets) error {
+// GenerateTweets is the core service: given a set of arguments (namely the
+// Twitter user(s) in question), generate a bunch of Markovian Tweets.
+func (eb *Ebooker) GenerateTweets(args *defs.GenParams, out *defs.Tweets) error {
 
 	var sourcestrings []string
 	for _, username := range args.Users {
@@ -86,8 +91,9 @@ func (eb *EbookerRequest) GenerateTweets(args *GenerateTweetsArgs, out *Tweets) 
 
 	if len(sourcestrings) == 0 {
 		eb.logger.StatusWrite("Can't write nonsense tweets, as we don't have a corpus!\n")
-		*out = Tweets{}
-		return errors.New("No text for users in list. Either unauthorized, or they don't exist")
+		noTextError := errors.New("No text for users in list. Either unauthorized, or they don't exist")
+		*out = defs.Tweets{}
+		return noTextError
 	}
 
 	// fetch or create a Generator
@@ -103,9 +109,9 @@ func (eb *EbookerRequest) GenerateTweets(args *GenerateTweetsArgs, out *Tweets) 
 
 	eb.logger.StatusWrite("Outputting nonsense tweets for \"%v\":\n", args.Users)
 
-	tweets := make(Tweets, args.NumTweets)
+	tweets := make(defs.Tweets, args.NumTweets)
 	for i := 0; i < args.NumTweets; i++ {
-		tweets = append(tweets, gen.GenerateText())
+		tweets[i] = gen.GenerateText()
 	}
 	*out = tweets
 	return nil

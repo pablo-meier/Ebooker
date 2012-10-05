@@ -11,3 +11,8 @@ Markov-based Twitter accounts are @kpich\_ebooks, @RandomTEDTalks, and
 @MarkovBible.
 
 Implemented in Go, because the gopher is cute and I was curious.
+
+Dependencies
+============
+
+* sqlite3
