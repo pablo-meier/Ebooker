@@ -3,7 +3,7 @@ package oauth1
 import (
 	"launchpad.net/gocheck"
 
-	"ebooker/defs"
+	"ebooker/logging"
 
 	"net/http"
 	"regexp"
@@ -18,7 +18,7 @@ var _ = gocheck.Suite(&OAuthSuite{})
 //
 // https://dev.twitter.com/docs/auth/creating-signature
 func (oa OAuthSuite) TestTwitterSignatureExample(c *gocheck.C) {
-	logger := GetLogMaster(false, true, false)
+	logger := logging.GetLogMaster(false, true, false)
 	o := OAuth1{&logger, "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw"}
 
 	url := "https://api.twitter.com/1/statuses/update.json"
@@ -33,7 +33,7 @@ func (oa OAuthSuite) TestTwitterSignatureExample(c *gocheck.C) {
 		"oauth_token":            "370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb",
 		"oauth_version":          "1.0"}
 
-	token := defs.Token{"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"}
+	token := Token{"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"}
 
 	// check signature base string
 	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1%2Fstatuses%2Fupdate.json&include_entities%3Dtrue%26oauth_consumer_key%3Dxvz1evFS4wEEPTGEFPHBog%26oauth_nonce%3DkYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1318622958%26oauth_token%3D370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb%26oauth_version%3D1.0%26status%3DHello%2520Ladies%2520%252B%2520Gentlemen%252C%2520a%2520signed%2520OAuth%2520request%2521"
@@ -50,7 +50,7 @@ func (oa OAuthSuite) TestTwitterSignatureExample(c *gocheck.C) {
 // Making this example from the OAuth tool for update.json, since it's still getting hung up on it.
 func (oa OAuthSuite) TestAuthOnUpdate(c *gocheck.C) {
 
-	logger := GetLogMaster(false, true, false)
+	logger := logging.GetLogMaster(false, true, false)
 	o := OAuth1{&logger, "MxIkjx9eCC3j1JC8kTig", "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"}
 
 	url := "https://api.twitter.com/1.1/statuses/update.json"
@@ -65,7 +65,7 @@ func (oa OAuthSuite) TestAuthOnUpdate(c *gocheck.C) {
 		"oauth_timestamp":        "1349163796",
 		"oauth_version":          "1.0"}
 
-	token := defs.Token{"27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt", "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E"}
+	token := Token{"27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt", "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E"}
 
 	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fupdate.json&oauth_consumer_key%3DMxIkjx9eCC3j1JC8kTig%26oauth_nonce%3D1bd818f5d8e62ceb172aad5bae030fd3%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1349163796%26oauth_token%3D27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt%26oauth_version%3D1.0%26status%3DIMMATWEET"
 	c.Assert(o.makeSignatureBaseString(urlParams, bodyParams, authParams, url, method), gocheck.Equals, baseStringExpected)
@@ -84,7 +84,7 @@ func (oa OAuthSuite) TestAuthOnUpdate(c *gocheck.C) {
 //
 // when requesting a request token, before you get an "oauth_token" value.
 func (oa OAuthSuite) TestSecondTwitterExample(c *gocheck.C) {
-	logger := GetLogMaster(false, true, false)
+	logger := logging.GetLogMaster(false, true, false)
 	o := OAuth1{&logger, "cChZNFj6T5R0TigYB9yd1w", "L8qq9PZyRg6ieKGEKhZolGC0vJWLw8iEJ88DRdyOg"}
 
 	url := "https://api.twitter.com/oauth/request_token"
@@ -105,7 +105,7 @@ func (oa OAuthSuite) TestSecondTwitterExample(c *gocheck.C) {
 }
 
 func (oa OAuthSuite) TestStatusUpdateWithoutEncoding(c *gocheck.C) {
-	logger := GetLogMaster(false, true, false)
+	logger := logging.GetLogMaster(false, true, false)
 	o := OAuth1{&logger, "MxIkjx9eCC3j1JC8kTig", "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"}
 
 	url := "https://api.twitter.com/1.1/statuses/update.json"
@@ -120,7 +120,7 @@ func (oa OAuthSuite) TestStatusUpdateWithoutEncoding(c *gocheck.C) {
 		"oauth_timestamp":        "1349229371",
 		"oauth_version":          "1.0"}
 
-	token := defs.Token{"27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt", "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E"}
+	token := Token{"27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt", "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E"}
 
 	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fupdate.json&oauth_consumer_key%3DMxIkjx9eCC3j1JC8kTig%26oauth_nonce%3Def1efdb1c6b03c70ae2800543caae04d%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1349229371%26oauth_token%3D27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt%26oauth_version%3D1.0%26status%3DIMMATWEET"
 
@@ -131,7 +131,7 @@ func (oa OAuthSuite) TestStatusUpdateWithoutEncoding(c *gocheck.C) {
 }
 
 func (oa OAuthSuite) TestGetTimelineWithAuthorization(c *gocheck.C) {
-	logger := GetLogMaster(false, true, false)
+	logger := logging.GetLogMaster(false, true, false)
 	o := OAuth1{&logger, "MxIkjx9eCC3j1JC8kTig", "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"}
 
 	url := "https://api.twitter.com/1.1/statuses/user_timeline.json"
@@ -146,7 +146,7 @@ func (oa OAuthSuite) TestGetTimelineWithAuthorization(c *gocheck.C) {
 		"oauth_timestamp":        "1349331540",
 		"oauth_version":          "1.0"}
 
-	token := defs.Token{"27082544-QJA8iu2G4s7xG9OBRFKLlPntzJakmxidUgrlYtlIy", "yuNeA8Z2DPLu8wwU7zYlsxIGIEyMqqxzaczCafdtvYY"}
+	token := Token{"27082544-QJA8iu2G4s7xG9OBRFKLlPntzJakmxidUgrlYtlIy", "yuNeA8Z2DPLu8wwU7zYlsxIGIEyMqqxzaczCafdtvYY"}
 
 	baseStringExpected := "GET&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fuser_timeline.json&oauth_consumer_key%3DMxIkjx9eCC3j1JC8kTig%26oauth_nonce%3De0420a453875a19723a3873c9d6af3f0%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1349331540%26oauth_token%3D27082544-QJA8iu2G4s7xG9OBRFKLlPntzJakmxidUgrlYtlIy%26oauth_version%3D1.0%26screen_name%3Dtheletterjeff"
 
@@ -164,10 +164,10 @@ func checkSignature(req *http.Request, expected string, c *gocheck.C) {
 }
 
 func (oa OAuthSuite) TestMakingSigningKey(c *gocheck.C) {
-	logger := GetLogMaster(false, true, false)
+	logger := logging.GetLogMaster(false, true, false)
 	o := OAuth1{&logger, "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw"}
 
-	token := defs.Token{"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"}
+	token := Token{"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"}
 
 	// With a valid token
 	c.Assert(o.makeSigningKey(&token), gocheck.Equals, "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw&LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE")
@@ -177,14 +177,14 @@ func (oa OAuthSuite) TestMakingSigningKey(c *gocheck.C) {
 }
 
 func (oa OAuthSuite) TestTokenStringParsing(c *gocheck.C) {
-	logger := GetLogMaster(false, true, false)
+	logger := logging.GetLogMaster(false, true, false)
 	o := OAuth1{&logger, "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw"}
 
 	testcase := "oauth_token=NPcudxy0yU5T3tBzho7iCotZ3cnetKwcTIRlX0iwRl0&oauth_token_secret=veNRnAWe6inFuo8o2u8SLLZLjolYDmDP7SzL0YfYI&oauth_callback_confirmed=true"
 	token := o.parseTokenData(testcase)
 
-	c.Assert(token.oauthToken, gocheck.Equals, "NPcudxy0yU5T3tBzho7iCotZ3cnetKwcTIRlX0iwRl0")
-	c.Assert(token.oauthTokenSecret, gocheck.Equals, "veNRnAWe6inFuo8o2u8SLLZLjolYDmDP7SzL0YfYI")
+	c.Assert(token.OAuthToken, gocheck.Equals, "NPcudxy0yU5T3tBzho7iCotZ3cnetKwcTIRlX0iwRl0")
+	c.Assert(token.OAuthTokenSecret, gocheck.Equals, "veNRnAWe6inFuo8o2u8SLLZLjolYDmDP7SzL0YfYI")
 }
 
 func (o OAuthSuite) TestPercentEncode(c *gocheck.C) {

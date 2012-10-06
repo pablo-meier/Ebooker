@@ -1,5 +1,5 @@
 /*
-Command that launches a service that responds to requests with ebooking 
+Command that launches a service that responds to requests with ebooking
 capabilities.
 */
 package main

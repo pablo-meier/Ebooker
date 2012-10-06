@@ -1,6 +1,4 @@
 * Write a frontend "client" that serves like the current script does.
-** Factor out storage of tweets/tokens to ebooker/server?
-** Factor out oauth tokens to client?
 
 * Implement API!
 ** Bots/Scheduling
@@ -12,17 +10,20 @@
 
 API
 ===
+
 GenerateTweets(genParams) : []string
 GenerateWithAuthorization(genParams, authParams) : []string
 
 CreateNewBot(name, authParams, genparams, schedule) : "Next time is..."
 ListBots() : []string
-
 SetBotSchedule(name, schedule) : "Next time is..."
 ListBotSchedule(name) : "Next time is..."
 CancelBot(name) : "<name> cancelled."
 DeleteBot(name) : "<name> gone!"
 
+ProvideCredentials(name, authparams) : "Name -> Token"
+
+Ping() : "ok"
 
 
 Critical
