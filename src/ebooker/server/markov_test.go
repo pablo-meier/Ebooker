@@ -1,6 +1,8 @@
-package ebooks
+package main
 
 import (
+	"ebooker/logging"
+
 	"fmt"
 	"launchpad.net/gocheck"
 	"math"
@@ -31,7 +33,7 @@ type GenFreqTest struct {
 
 // Reduce some boilerplate.
 func makeGenerator(prefix, limit int) *Generator {
-	return CreateGenerator(prefix, limit, &LogMaster{})
+	return CreateGenerator(prefix, limit, &logging.LogMaster{})
 }
 
 // To test AddSeeds, we create a Generator, feed it some text, and ensure:
@@ -80,7 +82,7 @@ func (s MarkovSuite) TestAddSeeds(c *gocheck.C) {
 	}
 }
 
-// Similar to TestAddSeeds, we want to ensure that we can add multiple 
+// Similar to TestAddSeeds, we want to ensure that we can add multiple
 // representations for the same canonical prefix, e.g. "Daddy says" ==
 // "daddy says" == "DADDY SAYS"
 func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
@@ -111,13 +113,13 @@ func (s MarkovSuite) TestRepresentationCount(c *gocheck.C) {
 	assertSuffixFrequencyCount(gen.Reps, "sad", "sad", 1, c)
 }
 
-// Much harder to test in that we require some level of randomness. 
+// Much harder to test in that we require some level of randomness.
 // Essentially, after we generate the appropriate data model, we'll run
 // Generate several hundred or thousand times. We then see if the approximate
 // number of times that each result came up corresponds to its probability.
 //
 // It's situations like these that make me wish I paid more attention in Unit
-// Testing workshops,since I'm sure there's a construct out there to test that 
+// Testing workshops,since I'm sure there's a construct out there to test that
 // your random map works without, you know, requiring pseudorandom input...
 //
 // * First we ensure that when we generate off a single prefix with a single

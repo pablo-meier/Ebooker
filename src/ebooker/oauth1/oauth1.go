@@ -16,9 +16,11 @@ TODO:
 - get and fetch secrets dynamically
 */
 
-package ebooks
+package oauth1
 
 import (
+	"ebooker/logging"
+
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
@@ -50,42 +52,45 @@ const (
 	AUTHENTICATE_URL  = "https://api.twitter.com/oauth/authenticate"
 	ACCESS_TOKEN_URL  = "https://api.twitter.com/oauth/access_token"
 	REQUEST_TOKEN_URL = "https://api.twitter.com/oauth/request_token"
-	UPDATE_STATUS_URL = "https://api.twitter.com/1.1/statuses/update.json"
 
 	// Other 'naked' values
 	OUT_OF_BAND = "oob"
 )
 
 type OAuth1 struct {
-	logger *LogMaster
+	logger *logging.LogMaster
 
 	applicationKey    string
 	applicationSecret string
 }
 
 type Token struct {
-	oauthToken       string
-	oauthTokenSecret string
+	OAuthToken       string
+	OAuthTokenSecret string
+}
+
+func CreateOAuth1(l *logging.LogMaster, key, secret string) OAuth1 {
+	return OAuth1{l, key, secret}
 }
 
 // Gives us a request token to begin an OAuth exchange with Twitter.
-func (o OAuth1) getRequestToken() *Token {
+func (o OAuth1) ObtainRequestToken() *Token {
 	o.logger.DebugWrite("Making a a POST request for a request token...\n")
 	url := REQUEST_TOKEN_URL
 	method := "POST"
 	urlParams := map[string]string{}
 	bodyParams := map[string]string{}
 	authParams := map[string]string{OAUTH_CALLBACK: OUT_OF_BAND}
-	req := o.createAuthorizedRequest(url, method, urlParams, bodyParams, authParams, nil)
-	resp := o.executeRequest(req)
+	req := o.CreateAuthorizedRequest(url, method, urlParams, bodyParams, authParams, nil)
+	resp := o.ExecuteRequest(req)
 
 	return o.parseTokenResponse(resp)
 }
 
 // Given a request token, we get an Access token for the user account.
-func (o OAuth1) getAccessToken(requestToken *Token) *Token {
+func (o OAuth1) ObtainAccessToken(requestToken *Token) *Token {
 
-	tokenUrl := fmt.Sprintf("oauth_token=%s", requestToken.oauthToken)
+	tokenUrl := fmt.Sprintf("oauth_token=%s", requestToken.OAuthToken)
 	userFacingUrl := strings.Join([]string{AUTHENTICATE_URL, tokenUrl}, "?")
 
 	fmt.Printf("Please sign in to Twitter at the following URL: %s\n", userFacingUrl)
@@ -101,8 +106,8 @@ func (o OAuth1) getAccessToken(requestToken *Token) *Token {
 	urlParams := map[string]string{}
 	bodyParams := map[string]string{OAUTH_VERIFIER: strconv.Itoa(pin)}
 	authParams := map[string]string{}
-	req := o.createAuthorizedRequest(url, method, urlParams, bodyParams, authParams, requestToken)
-	resp := o.executeRequest(req)
+	req := o.CreateAuthorizedRequest(url, method, urlParams, bodyParams, authParams, requestToken)
+	resp := o.ExecuteRequest(req)
 
 	return o.parseTokenResponse(resp)
 }
@@ -110,11 +115,11 @@ func (o OAuth1) getAccessToken(requestToken *Token) *Token {
 // Handles most of the functionality in a way that's (reasonably) easy to call.
 // Makes a POST request to the URL provided, handling the various places you can
 // can put parameters (in the URL, e.g. twitter.com/authorize?token_id=900981,
-// in the body e.g. status="Sup%20Son", or in the "Authorization:" part of the 
+// in the body e.g. status="Sup%20Son", or in the "Authorization:" part of the
 // Header).
 //
 // Understandable why we have it, and God bless crypto, but what a bloody mess.
-func (o OAuth1) createAuthorizedRequest(url, method string,
+func (o OAuth1) CreateAuthorizedRequest(url, method string,
 	urlParams, bodyParams, authParams map[string]string,
 	token *Token) *http.Request {
 
@@ -153,7 +158,7 @@ func (o OAuth1) authorizedRequestWithParams(urlRaw, method string,
 	}
 
 	if token != nil {
-		authParams["oauth_token"] = token.oauthToken
+		authParams["oauth_token"] = token.OAuthToken
 	}
 
 	signature := o.createSignature(urlParams, bodyParams, authParams, urlRaw, method, token)
@@ -205,8 +210,8 @@ func (o OAuth1) parseTokenData(tokenData string) *Token {
 	return &Token{paramMap["oauth_token"], paramMap["oauth_token_secret"]}
 }
 
-// The "nonce" is a relatively random alphanumeric string that we generate, and 
-// the Twitter server uses to ensure that we're not sending the same request 
+// The "nonce" is a relatively random alphanumeric string that we generate, and
+// the Twitter server uses to ensure that we're not sending the same request
 // twice. Their example is 42 characters long, so we'll just emulate that.
 func createNonce() string {
 	nonceLen := 42 // taken from their example
@@ -256,7 +261,7 @@ func (o *OAuth1) makeSignatureBaseString(urlParams, bodyParams, authParams map[s
 	}
 	sort.Strings(keys)
 
-	// create parameter string 
+	// create parameter string
 	for i, key := range keys {
 		keys[i] = strings.Join([]string{key, encoded[key]}, "=")
 
@@ -271,7 +276,7 @@ func (o *OAuth1) makeSigningKey(token *Token) string {
 	appKey := percentEncode(o.applicationSecret)
 	consumerKey := ""
 	if token != nil {
-		consumerKey = percentEncode(token.oauthTokenSecret)
+		consumerKey = percentEncode(token.OAuthTokenSecret)
 	}
 	return strings.Join([]string{appKey, consumerKey}, "&")
 }
@@ -290,7 +295,7 @@ func (o *OAuth1) finishHeader(req *http.Request, authParams map[string]string) {
 	req.Header.Add("Accept", "*/*")
 }
 
-func (o OAuth1) executeRequest(req *http.Request) *http.Response {
+func (o OAuth1) ExecuteRequest(req *http.Request) *http.Response {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil || resp == nil {

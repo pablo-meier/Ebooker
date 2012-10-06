@@ -1,4 +1,4 @@
-package ebooks
+package main
 
 import (
 	"launchpad.net/gocheck"

@@ -1,16 +1,27 @@
 * Write a frontend "client" that serves like the current script does.
+** Factor out storage of tweets/tokens to ebooker/server?
+** Factor out oauth tokens to client?
+
+* Implement API!
+** Bots/Scheduling
+
+* Proper server logging to files, etc.?
+* Deloy to a linode.
+
 * Another frontend is the webapp.
-
-Factor out storage of tweets/tokens to ebooker/server?
-
 
 API
 ===
+GenerateTweets(genParams) : []string
+GenerateWithAuthorization(genParams, authParams) : []string
 
-GenerateTweets(genParams)
-GenerateWithAuthorization(genParams, authParams)
-CreateNewBot(name, authParams, genparams, schedule)
-SetBotSchedule(name, schedule)
+CreateNewBot(name, authParams, genparams, schedule) : "Next time is..."
+ListBots() : []string
+
+SetBotSchedule(name, schedule) : "Next time is..."
+ListBotSchedule(name) : "Next time is..."
+CancelBot(name) : "<name> cancelled."
+DeleteBot(name) : "<name> gone!"
 
 
 

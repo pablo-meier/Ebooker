@@ -7,13 +7,15 @@ build:
 	go build -o bin/ebooker_client ebooker/client
 
 fmt:
-	go fmt ebooker/ebooks
 	go fmt ebooker/client
 	go fmt ebooker/server
 	go fmt ebooker/defs
+	go fmt ebooker/logging
+	go fmt ebooker/oauth1
 
 test:
-	go test ebooker/ebooks
+	go test ebooker/server
+	go test ebooker/oauth
 
 clean:
 	rm -rf bin/*

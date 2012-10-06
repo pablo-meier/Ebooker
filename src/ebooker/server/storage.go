@@ -1,12 +1,15 @@
-/*
-Package that handles persistent storage for the application.
+package main
 
-TODO: Replace boilerplate for queries and insertions.
+/*
+Contains functions + data structures for persistent data storage. Currently
+using sqlite3.
 */
-package ebooks
 
 import (
 	_ "github.com/mattn/go-sqlite3"
+
+	"ebooker/logging"
+	"ebooker/oauth1"
 
 	"database/sql"
 	"sort"
@@ -16,10 +19,10 @@ import (
 // Top-level object that maintains the database connection.
 type DataHandle struct {
 	handle *sql.DB
-	logger *LogMaster
+	logger *logging.LogMaster
 }
 
-// Cleanup function for resources used by `storage`. Should defer this call 
+// Cleanup function for resources used by `storage`. Should defer this call
 // after obtaining a DataHandle!
 func (dh DataHandle) Cleanup() {
 	dh.handle.Close()
@@ -27,7 +30,7 @@ func (dh DataHandle) Cleanup() {
 
 // Ensures we've got a valid instance of the database, and if not, creates one
 // with the appropriate tables.
-func GetDataHandle(filename string, logger *LogMaster) DataHandle {
+func getDataHandle(filename string, logger *logging.LogMaster) DataHandle {
 
 	db, err := sql.Open("sqlite3", filename)
 	handle := DataHandle{db, logger}
@@ -114,7 +117,7 @@ func (dh DataHandle) InsertFreshTweets(username string, newTweets Tweets) {
 
 // Retrieves the "oauth_token" and "oauth_token_secret" for a given user, if we
 // have it. If we don't, we state so in the second parameter.
-func (dh DataHandle) getUserAccessToken(username string) (*Token, bool) {
+func (dh DataHandle) getUserAccessToken(username string) (*oauth1.Token, bool) {
 	db := dh.handle
 
 	queryStr := "SELECT Token, Token_Secret FROM TwitterUsers WHERE Screen_name = ?"
@@ -137,11 +140,11 @@ func (dh DataHandle) getUserAccessToken(username string) (*Token, bool) {
 	if length == 0 {
 		return nil, false
 	}
-	return &Token{token, tokenSecret}, true
+	return &oauth1.Token{token, tokenSecret}, true
 }
 
 // Inserts tweets into persistent storage.
-func (dh DataHandle) insertUserAccessToken(username string, token *Token) {
+func (dh DataHandle) insertUserAccessToken(username string, token *oauth1.Token) {
 	db := dh.handle
 
 	tx, err := db.Begin()
@@ -161,7 +164,7 @@ func (dh DataHandle) insertUserAccessToken(username string, token *Token) {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(username, token.oauthToken, token.oauthTokenSecret)
+	_, err = stmt.Exec(username, token.OAuthToken, token.OAuthTokenSecret)
 	if err != nil {
 		dh.logger.StatusWrite("Unexpected Error in Executing INSERT Statement.\n")
 		dh.logger.DebugWrite("Error is %v\n", err)

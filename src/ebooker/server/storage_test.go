@@ -1,6 +1,7 @@
-package ebooks
+package main
 
 import (
+	"ebooker/logging"
 	"launchpad.net/gocheck"
 )
 
@@ -12,7 +13,7 @@ var _ = gocheck.Suite(&StorageSuite{})
 // Simple test case, where we acquire a handle, save some tweets to it, and retrieve them.
 func (s StorageSuite) TestStorageFunctionality(c *gocheck.C) {
 
-	dh := GetDataHandle("./ebooker_tweets.db", &LogMaster{})
+	dh := getDataHandle("./ebooker_tweets.db", &logging.LogMaster{})
 	defer dh.Cleanup()
 
 	pabloTweets := []TweetData{TweetData{398273498291123, "Just got an email whose only contents were \"LOL\". The day is won."},

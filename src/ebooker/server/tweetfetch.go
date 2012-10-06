@@ -1,13 +1,15 @@
+package main
+
 /*
-Package retrieves tweets from the Twitter servers, using their GET API.
+Functions to retrieve tweets from the Twitter servers using their GET API, or
+to post tweets.
 
-TODO: 
-- Access tokens (default to our own?)
-- Turn responses into Tweets
+TODO: Dynamic application secrets
 */
-package ebooks
-
 import (
+	"ebooker/logging"
+	"ebooker/oauth1"
+
 	"encoding/json"
 	"html"
 	"io/ioutil"
@@ -15,13 +17,9 @@ import (
 	"strconv"
 )
 
-const applicationKey = "MxIkjx9eCC3j1JC8kTig"
-const applicationSecret = "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"
-
 type TweetFetcher struct {
-	logger *LogMaster
-	oauth  *OAuth1
-	data   *DataHandle
+	logger *logging.LogMaster
+	oauth  *oauth1.OAuth1
 }
 
 type TweetData struct {
@@ -37,12 +35,10 @@ func (t Tweets) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t Tweets) Less(i, j int) bool { return t[i].Id < t[j].Id }
 
 const USER_TIMELINE_URL = "http://api.twitter.com/1/statuses/user_timeline.json"
-const DEFAULT_USER = "SrPablo"
+const UPDATE_STATUS_URL = "https://api.twitter.com/1.1/statuses/update.json"
 
-func GetTweetFetcher(logger *LogMaster, dh *DataHandle) TweetFetcher {
-	oauth := OAuth1{logger, applicationKey, applicationSecret}
-
-	return TweetFetcher{logger, &oauth, dh}
+func getTweetFetcher(logger *logging.LogMaster, oauth *oauth1.OAuth1) TweetFetcher {
+	return TweetFetcher{logger, oauth}
 }
 
 // DeepDive is for new accounts, of if you're the kind of person who runs
@@ -50,16 +46,7 @@ func GetTweetFetcher(logger *LogMaster, dh *DataHandle) TweetFetcher {
 // as we can by recursively calling with the max_id. See:
 //
 // https://dev.twitter.com/docs/working-with-timelines
-func (tf TweetFetcher) DeepDive(username string) Tweets {
-	return tf.AuthorizedDeepDive(username, DEFAULT_USER)
-}
-
-func (tf TweetFetcher) AuthorizedDeepDive(username, onBehalfOf string) Tweets {
-	token := tf.getAccessToken(onBehalfOf)
-	return tf.DeepDiveWithAccess(username, token)
-}
-
-func (tf TweetFetcher) DeepDiveWithAccess(username string, accessToken *Token) Tweets {
+func (tf TweetFetcher) DeepDive(username string, accessToken *oauth1.Token) Tweets {
 	tf.logger.StatusWrite("Doing a deep dive!\n")
 
 	url := USER_TIMELINE_URL
@@ -71,8 +58,8 @@ func (tf TweetFetcher) DeepDiveWithAccess(username string, accessToken *Token) T
 	bodyParams := map[string]string{}
 	authParams := map[string]string{}
 
-	req := tf.oauth.createAuthorizedRequest(url, method, urlParams, bodyParams, authParams, accessToken)
-	resp := tf.oauth.executeRequest(req)
+	req := tf.oauth.CreateAuthorizedRequest(url, method, urlParams, bodyParams, authParams, accessToken)
+	resp := tf.oauth.ExecuteRequest(req)
 
 	tweets := tf.getTweetsFromResponse(resp)
 
@@ -87,8 +74,8 @@ func (tf TweetFetcher) DeepDiveWithAccess(username string, accessToken *Token) T
 	for {
 		urlParams["max_id"] = strconv.FormatUint(maxId, 10)
 
-		req := tf.oauth.createAuthorizedRequest(url, method, urlParams, bodyParams, authParams, accessToken)
-		resp := tf.oauth.executeRequest(req)
+		req := tf.oauth.CreateAuthorizedRequest(url, method, urlParams, bodyParams, authParams, accessToken)
+		resp := tf.oauth.ExecuteRequest(req)
 
 		olderTweets := tf.getTweetsFromResponse(resp)
 		if olderTweets.Len() == 0 {
@@ -111,16 +98,7 @@ func (tf TweetFetcher) DeepDiveWithAccess(username string, accessToken *Token) T
 // GetRecentTimeline is the much more common use case: we fetch tweets from the
 // timeline, using since_id. This allows us to incrementally build our tweet
 // database.
-func (tf TweetFetcher) GetRecentTimeline(username string, latest *TweetData) Tweets {
-	return tf.AuthorizedGetRecentTimeline(username, DEFAULT_USER, latest)
-}
-
-func (tf TweetFetcher) AuthorizedGetRecentTimeline(username, onBehalfOf string, latest *TweetData) Tweets {
-	token := tf.getAccessToken(onBehalfOf)
-	return tf.GetRecentTimelineWithAccess(username, latest, token)
-}
-
-func (tf TweetFetcher) GetRecentTimelineWithAccess(username string, latest *TweetData, accessToken *Token) Tweets {
+func (tf TweetFetcher) GetRecentTimeline(username string, latest *TweetData, accessToken *oauth1.Token) Tweets {
 	url := USER_TIMELINE_URL
 	method := "GET"
 	urlParams := map[string]string{
@@ -131,29 +109,27 @@ func (tf TweetFetcher) GetRecentTimelineWithAccess(username string, latest *Twee
 	bodyParams := map[string]string{}
 	authParams := map[string]string{}
 
-	req := tf.oauth.createAuthorizedRequest(url, method, urlParams, bodyParams, authParams, accessToken)
-	resp := tf.oauth.executeRequest(req)
+	req := tf.oauth.CreateAuthorizedRequest(url, method, urlParams, bodyParams, authParams, accessToken)
+	resp := tf.oauth.ExecuteRequest(req)
 
 	tweets := tf.getTweetsFromResponse(resp)
 
 	return tweets
 }
 
-// Calls the Twitter API's "update" function on the account name provided, with 
+// Calls the Twitter API's "update" function on the account name provided, with
 // the status text assigned. We assume the user has already provided the app
 // access to their credentials with OAuth; in case they haven't, we ask for them
 // and otherwise drop the request from this scope.
-func (tf TweetFetcher) SendTweet(username, status string) {
-	accessToken := tf.getAccessToken(username)
-
+func (tf TweetFetcher) SendTweet(status string, accessToken *oauth1.Token) {
 	tf.logger.DebugWrite("Sending Tweet POST request!\n")
 	url := UPDATE_STATUS_URL
 	method := "POST"
 	urlParams := map[string]string{}
 	bodyParams := map[string]string{"status": status}
 	authParams := map[string]string{}
-	req := tf.oauth.createAuthorizedRequest(url, method, urlParams, bodyParams, authParams, accessToken)
-	tf.oauth.executeRequest(req)
+	req := tf.oauth.CreateAuthorizedRequest(url, method, urlParams, bodyParams, authParams, accessToken)
+	tf.oauth.ExecuteRequest(req)
 }
 
 func (tf TweetFetcher) getTweetsFromResponse(resp *http.Response) Tweets {
@@ -181,20 +157,6 @@ func (tf TweetFetcher) getTweetsFromResponse(resp *http.Response) Tweets {
 		return tweets
 	}
 	return Tweets{}
-}
-
-func (tf TweetFetcher) getAccessToken(user string) *Token {
-	accessToken, exists := tf.data.getUserAccessToken(user)
-
-	if !exists {
-		tf.logger.StatusWrite("Access token for %v not present! Beginning OAuth...\n", user)
-		requestToken := tf.oauth.getRequestToken()
-		token := tf.oauth.getAccessToken(requestToken)
-
-		tf.data.insertUserAccessToken(user, token)
-		accessToken = token
-	}
-	return accessToken
 }
 
 func appendSlices(slice1, slice2 Tweets) Tweets {

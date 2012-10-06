@@ -1,6 +1,6 @@
-/* 
-Package for the actual consumption of corpus text, adding to the data model 
-for generation. Also contains the functions to generate text from that data 
+/*
+Package for the actual consumption of corpus text, adding to the data model
+for generation. Also contains the functions to generate text from that data
 model.
 
 We first build a list of prefixes (sets of words that come up together, such as
@@ -12,9 +12,9 @@ prefix while removing the first, forming a new prefix. We do this until we
 create a never-before seen prefix (in which case the sentence ends) or we hit
 the character limit (this is meant to create tweets, after all).
 
-Further work may be in randomizing or otherwise diversifying the end 
-conditions on the text generation, such as occassionally deciding to start 
-over, or taking the average tweet length of the user in question into 
+Further work may be in randomizing or otherwise diversifying the end
+conditions on the text generation, such as occassionally deciding to start
+over, or taking the average tweet length of the user in question into
 consideration.
 
 Note that we have two probabilistic maps in the code: one for prefixes to
@@ -34,23 +34,25 @@ Note that for tweets, it's unlikely we'll use any prefix length greater than
 1, but it's useful to have in case we'd like to generate a larger output, like
 michaelochurch screeds.
 
-Note there is a great codewalk of a simple version of this algo on the Go 
+Note there is a great codewalk of a simple version of this algo on the Go
 website (http://golang.org/doc/codewalk/markov/), but I'm only taking the basic
 algo and supplying my own implementation, since it's more fun and gives me more
 insight into Go, and the problem at hand.
 
-Examples of awesome Markov Twitter bots: 
+Examples of awesome Markov Twitter bots:
 @RandomTedTalks, @kpich_ebooks, @markov_bible
 */
 
-package ebooks
+package main
 
 import (
+	"ebooker/logging"
+
 	"math/rand"
 	"strings"
 )
 
-// Since both maps (the prefix -> suffix and canonical -> representation) 
+// Since both maps (the prefix -> suffix and canonical -> representation)
 // operate about the same way, we abstract their representation into a notion
 // of CountedStrings, where the values of the map contain both the string we
 // care about and a count of how often it occurs.
@@ -59,8 +61,8 @@ type CountedString struct {
 	str  string
 }
 
-// A CountedStringList is a list of all the CountedStrings for a given prefix, 
-// and a total number of times that prefix occurs (necessary, with the 
+// A CountedStringList is a list of all the CountedStrings for a given prefix,
+// and a total number of times that prefix occurs (necessary, with the
 // CountedString hits, for probability calculation).
 type CountedStringList struct {
 	slice []*CountedString
@@ -71,21 +73,21 @@ type CountedStringList struct {
 // move canonical prefixes to suffixes, and another to words -> representation.
 type CountedStringMap map[string]*CountedStringList
 
-// Generators gives us all we need to build a fresh data model to generate 
+// Generators gives us all we need to build a fresh data model to generate
 // from.
 type Generator struct {
 	PrefixLen  int
 	CharLimit  int
-	Data       CountedStringMap // suffix map
-	Reps       CountedStringMap // representation map
-	Beginnings []string         // acceptable ways to start a tweet.
-	canon      bool             // map sources seperately from representations.
-	logger     *LogMaster       // Lets us debug, emit status.
+	Data       CountedStringMap   // suffix map
+	Reps       CountedStringMap   // representation map
+	Beginnings []string           // acceptable ways to start a tweet.
+	canon      bool               // map sources seperately from representations.
+	logger     *logging.LogMaster // Lets us debug, emit status.
 }
 
-// CreateGenerator returns a Generator that is fully initialized and ready for 
+// CreateGenerator returns a Generator that is fully initialized and ready for
 // use.
-func CreateGenerator(prefixLen int, charLimit int, logger *LogMaster) *Generator {
+func CreateGenerator(prefixLen int, charLimit int, logger *logging.LogMaster) *Generator {
 	markov := make(CountedStringMap)
 	reps := make(CountedStringMap)
 	beginnings := []string{}
@@ -97,8 +99,8 @@ func createCountedString(str string) *CountedString {
 	return &CountedString{1, str}
 }
 
-// AddSeeds takes in a string, breaks it into prefixes, and adds it to the 
-// data model. 
+// AddSeeds takes in a string, breaks it into prefixes, and adds it to the
+// data model.
 func (g *Generator) AddSeeds(input string) {
 	source := tokenize(StripReply(input))
 
@@ -124,7 +126,7 @@ func (g *Generator) AddSeeds(input string) {
 }
 
 // Add to map checks if the key/value pair exists in the map. If not, we create
-// them, and if so, we either increment the counter on the value or initialize 
+// them, and if so, we either increment the counter on the value or initialize
 // it if it didn't exist previously.
 func AddToMap(prefix, toAdd string, aMap CountedStringMap) {
 
@@ -146,7 +148,7 @@ func AddToMap(prefix, toAdd string, aMap CountedStringMap) {
 	}
 }
 
-// tokenize splits the input string into "words" we use as prefixes and 
+// tokenize splits the input string into "words" we use as prefixes and
 // suffixes. We can't do a naive 'split' by a separator, or even a regex '\W'
 // due to corner cases, and the nature of the text we intend to capture: e.g.
 // we'd like "forty5" to parse as such, rather than "forty" with "5" being
@@ -155,8 +157,8 @@ func tokenize(input string) []string {
 	return strings.Split(input, " ")
 }
 
-// hasCountedString searches a CountedStringList for one that contains the string, and 
-// returns the suffix (if applicable) and a boolean describing whether or not 
+// hasCountedString searches a CountedStringList for one that contains the string, and
+// returns the suffix (if applicable) and a boolean describing whether or not
 // we found it.
 func (l CountedStringList) hasCountedString(lookFor string) (*CountedString, bool) {
 	slice := l.slice
@@ -181,9 +183,9 @@ func (g *Generator) GenerateFromPrefix(prefix string) string {
 
 	g.logger.DebugWrite("Generating text from prefix \"%s\"\n", prefix)
 
-	// Representation gets a special case, since you can have a multi-word 
+	// Representation gets a special case, since you can have a multi-word
 	// prefix (e.g. "Paul is") but each word needs it's own representation
-	// (e.g. "PAUL" "is" or "pAUL" "Is"). Note that this can break if your 
+	// (e.g. "PAUL" "is" or "pAUL" "Is"). Note that this can break if your
 	// prefix's rep is longer than the charLimit, should we generalize
 	var result []string
 	charLimit := g.CharLimit

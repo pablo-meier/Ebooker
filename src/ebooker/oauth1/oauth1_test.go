@@ -1,7 +1,9 @@
-package ebooks
+package oauth1
 
 import (
 	"launchpad.net/gocheck"
+
+	"ebooker/defs"
 
 	"net/http"
 	"regexp"
@@ -11,7 +13,7 @@ type OAuthSuite struct{}
 
 var _ = gocheck.Suite(&OAuthSuite{})
 
-// This tests against the example Twitter themselves walk you through, once 
+// This tests against the example Twitter themselves walk you through, once
 // you've obtained an access token.
 //
 // https://dev.twitter.com/docs/auth/creating-signature
@@ -31,7 +33,7 @@ func (oa OAuthSuite) TestTwitterSignatureExample(c *gocheck.C) {
 		"oauth_token":            "370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb",
 		"oauth_version":          "1.0"}
 
-	token := Token{"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"}
+	token := defs.Token{"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"}
 
 	// check signature base string
 	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1%2Fstatuses%2Fupdate.json&include_entities%3Dtrue%26oauth_consumer_key%3Dxvz1evFS4wEEPTGEFPHBog%26oauth_nonce%3DkYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1318622958%26oauth_token%3D370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb%26oauth_version%3D1.0%26status%3DHello%2520Ladies%2520%252B%2520Gentlemen%252C%2520a%2520signed%2520OAuth%2520request%2521"
@@ -63,7 +65,7 @@ func (oa OAuthSuite) TestAuthOnUpdate(c *gocheck.C) {
 		"oauth_timestamp":        "1349163796",
 		"oauth_version":          "1.0"}
 
-	token := Token{"27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt", "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E"}
+	token := defs.Token{"27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt", "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E"}
 
 	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fupdate.json&oauth_consumer_key%3DMxIkjx9eCC3j1JC8kTig%26oauth_nonce%3D1bd818f5d8e62ceb172aad5bae030fd3%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1349163796%26oauth_token%3D27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt%26oauth_version%3D1.0%26status%3DIMMATWEET"
 	c.Assert(o.makeSignatureBaseString(urlParams, bodyParams, authParams, url, method), gocheck.Equals, baseStringExpected)
@@ -76,7 +78,7 @@ func (oa OAuthSuite) TestAuthOnUpdate(c *gocheck.C) {
 	c.Assert(signature, gocheck.Equals, "Jk3epY305uVOD9dRFdqpioYBXHA%3D")
 }
 
-// This example comes from 
+// This example comes from
 //
 // https://dev.twitter.com/docs/auth/implementing-sign-twitter
 //
@@ -118,7 +120,7 @@ func (oa OAuthSuite) TestStatusUpdateWithoutEncoding(c *gocheck.C) {
 		"oauth_timestamp":        "1349229371",
 		"oauth_version":          "1.0"}
 
-	token := Token{"27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt", "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E"}
+	token := defs.Token{"27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt", "R2ieHCPMIECQnDhXMLOh3zL0w2CC484gFKVdBq6E"}
 
 	baseStringExpected := "POST&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fupdate.json&oauth_consumer_key%3DMxIkjx9eCC3j1JC8kTig%26oauth_nonce%3Def1efdb1c6b03c70ae2800543caae04d%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1349229371%26oauth_token%3D27082544-JW0JZKi69R6OloylRBbs85By30kvZ7IfoGmGoiFvt%26oauth_version%3D1.0%26status%3DIMMATWEET"
 
@@ -144,7 +146,7 @@ func (oa OAuthSuite) TestGetTimelineWithAuthorization(c *gocheck.C) {
 		"oauth_timestamp":        "1349331540",
 		"oauth_version":          "1.0"}
 
-	token := Token{"27082544-QJA8iu2G4s7xG9OBRFKLlPntzJakmxidUgrlYtlIy", "yuNeA8Z2DPLu8wwU7zYlsxIGIEyMqqxzaczCafdtvYY"}
+	token := defs.Token{"27082544-QJA8iu2G4s7xG9OBRFKLlPntzJakmxidUgrlYtlIy", "yuNeA8Z2DPLu8wwU7zYlsxIGIEyMqqxzaczCafdtvYY"}
 
 	baseStringExpected := "GET&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fuser_timeline.json&oauth_consumer_key%3DMxIkjx9eCC3j1JC8kTig%26oauth_nonce%3De0420a453875a19723a3873c9d6af3f0%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1349331540%26oauth_token%3D27082544-QJA8iu2G4s7xG9OBRFKLlPntzJakmxidUgrlYtlIy%26oauth_version%3D1.0%26screen_name%3Dtheletterjeff"
 
@@ -165,7 +167,7 @@ func (oa OAuthSuite) TestMakingSigningKey(c *gocheck.C) {
 	logger := GetLogMaster(false, true, false)
 	o := OAuth1{&logger, "xvz1evFS4wEEPTGEFPHBog", "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw"}
 
-	token := Token{"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"}
+	token := defs.Token{"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"}
 
 	// With a valid token
 	c.Assert(o.makeSigningKey(&token), gocheck.Equals, "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw&LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE")

@@ -6,7 +6,8 @@ package main
 
 import (
 	"ebooker/defs"
-	"ebooker/ebooks"
+	"ebooker/logging"
+	"ebooker/oauth1"
 
 	"errors"
 	"flag"
@@ -17,6 +18,11 @@ import (
 	"os"
 	"time"
 )
+
+const DEFAULT_USER = "SrPablo"
+
+const applicationKey = "MxIkjx9eCC3j1JC8kTig"
+const applicationSecret = "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"
 
 // Starts the service
 func main() {
@@ -33,13 +39,15 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Silent default to false, since there isn't really an aesthetic need to do so
-	logger := ebooks.GetLogMaster(false, debug, timestamps)
-	dh := ebooks.GetDataHandle("./ebooker_tweets.db", &logger)
+	logger := logging.GetLogMaster(false, debug, timestamps)
+	dh := getDataHandle("./ebooker_tweets.db", &logger)
 	defer dh.Cleanup()
+	oauth1 := oauth1.CreateOAuth1(&logger, applicationKey, applicationSecret)
+	tf := getTweetFetcher(&logger, &oauth1)
 
 	logger.StatusWrite("Welcome to EBOOKER -- let's make some nonsense ^_^\n")
 	logger.StatusWrite("Registering Ebooker RPC..\n")
-	eb := Ebooker{&logger, &dh}
+	eb := Ebooker{&logger, &dh, &oauth1, &tf}
 	rpc.Register(&eb)
 	rpc.HandleHTTP()
 
@@ -55,8 +63,10 @@ func main() {
 // Ebooker is the provider of the service, and maintains its internal resources
 // in this struct.
 type Ebooker struct {
-	logger *ebooks.LogMaster
-	dh     *ebooks.DataHandle
+	logger *logging.LogMaster
+	data   *DataHandle
+	oauth  *oauth1.OAuth1
+	tf     *TweetFetcher
 }
 
 // GenerateTweets is the core service: given a set of arguments (namely the
@@ -67,23 +77,23 @@ func (eb *Ebooker) GenerateTweets(args *defs.GenParams, out *defs.Tweets) error 
 	for _, username := range args.Users {
 		// get tweets from persistent storage
 		eb.logger.StatusWrite("Reading from persistent storage for %s...\n", username)
-		oldTweets := eb.dh.GetTweetsFromStorage(username)
+		oldTweets := eb.data.GetTweetsFromStorage(username)
 
-		tf := ebooks.GetTweetFetcher(eb.logger, eb.dh)
+		token := eb.getAccessToken(DEFAULT_USER)
 
-		var newTweets ebooks.Tweets
+		var newTweets Tweets
 		if len(oldTweets) == 0 {
 			eb.logger.StatusWrite("Found no tweets for %s, doing a deep dive to retrieve their history.\n", username)
-			newTweets = tf.DeepDive(username)
+			newTweets = eb.tf.DeepDive(username, token)
 		} else {
 			eb.logger.StatusWrite("Found %d tweets for %s.\n", len(oldTweets), username)
 			newest := oldTweets[len(oldTweets)-1]
-			newTweets = tf.GetRecentTimeline(username, &newest)
+			newTweets = eb.tf.GetRecentTimeline(username, &newest, token)
 		}
 
 		// update the persistent storage
 		eb.logger.StatusWrite("Inserting %d new tweets into persistent storage.\n", len(newTweets))
-		eb.dh.InsertFreshTweets(username, newTweets)
+		eb.data.InsertFreshTweets(username, newTweets)
 
 		copyFrom(&sourcestrings, &oldTweets)
 		copyFrom(&sourcestrings, &newTweets)
@@ -97,7 +107,7 @@ func (eb *Ebooker) GenerateTweets(args *defs.GenParams, out *defs.Tweets) error 
 	}
 
 	// fetch or create a Generator
-	gen := ebooks.CreateGenerator(args.PrefixLen, 140, eb.logger)
+	gen := CreateGenerator(args.PrefixLen, 140, eb.logger)
 	if args.Reps {
 		gen.CanonicalizeSources()
 	}
@@ -117,8 +127,24 @@ func (eb *Ebooker) GenerateTweets(args *defs.GenParams, out *defs.Tweets) error 
 	return nil
 }
 
-func copyFrom(dst *[]string, src *ebooks.Tweets) {
+func copyFrom(dst *[]string, src *Tweets) {
 	for _, str := range *src {
 		*dst = append(*dst, str.Text)
 	}
+}
+
+// Returns the access token we have in storage for the user. If the user doesn't
+// exist, we return an error.
+func (eb *Ebooker) getAccessToken(user string) *oauth1.Token {
+	accessToken, exists := eb.data.getUserAccessToken(user)
+
+	if !exists {
+		eb.logger.StatusWrite("Access token for %v not present! Beginning OAuth...\n", user)
+		requestToken := eb.oauth.ObtainRequestToken()
+		token := eb.oauth.ObtainAccessToken(requestToken)
+
+		eb.data.insertUserAccessToken(user, token)
+		accessToken = token
+	}
+	return accessToken
 }
