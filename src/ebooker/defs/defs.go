@@ -13,6 +13,13 @@ type GenParams struct {
 	PrefixLen int      // Length of generation prefix. Smaller = more random, Larger = more accurate.
 }
 
+// Parameters needed to get a new bot up and running.
+type NewBotParams struct {
+	Gen   GenParams
+	Auth  AuthParams
+	Sched Schedule
+}
+
 // Parameters needed to Authenticate.
 type AuthParams struct {
 	User        string // The Username who is represented by this token.
@@ -22,5 +29,5 @@ type AuthParams struct {
 
 // Parameters needed to Schedule Tweeting.
 type Schedule struct {
-	Cron []string // schedule as a set of cron-formatted strings
+	Cron string // schedule as a set of cron-formatted strings
 }

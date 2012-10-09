@@ -2,6 +2,8 @@
 
 * Implement API!
 ** Bots/Scheduling
+*** Start with a simple twice a day.
+*** No parsing, just a constant Schedule Object for twice a day.
 
 * Proper server logging to files, etc.?
 * Deloy to a linode.

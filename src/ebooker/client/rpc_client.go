@@ -44,3 +44,14 @@ func main() {
 		fmt.Printf("%v\n", resp[i])
 	}
 }
+
+func newBot(genParams *defs.GenParams, client *rpc.Client) {
+	auth := defs.AuthParams{"SrPablo_ebooks", "", ""}
+	sched := defs.Schedule{"30 12,18 * * *"}
+
+	args := defs.NewBotParams{*genParams, auth, sched}
+	var resp string
+	client.Call("Ebooker.NewBot", &args, &resp)
+
+	fmt.Println(resp)
+}

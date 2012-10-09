@@ -121,7 +121,7 @@ func (tf TweetFetcher) GetRecentTimeline(username string, latest *TweetData, acc
 // the status text assigned. We assume the user has already provided the app
 // access to their credentials with OAuth; in case they haven't, we ask for them
 // and otherwise drop the request from this scope.
-func (tf TweetFetcher) SendTweet(status string, accessToken *oauth1.Token) {
+func (tf TweetFetcher) sendTweet(status string, accessToken *oauth1.Token) {
 	tf.logger.DebugWrite("Sending Tweet POST request!\n")
 	url := UPDATE_STATUS_URL
 	method := "POST"
