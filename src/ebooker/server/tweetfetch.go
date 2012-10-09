@@ -150,8 +150,8 @@ func (tf TweetFetcher) getTweetsFromResponse(resp *http.Response) Tweets {
 			tf.logger.DebugWrite("error is: %v\n", err)
 		}
 
-		for _, tweet := range tweets {
-			tweet.Text = html.UnescapeString(tweet.Text)
+		for i := range tweets {
+			tweets[i].Text = html.UnescapeString(tweets[i].Text)
 		}
 
 		return tweets
