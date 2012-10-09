@@ -15,9 +15,9 @@ type GenParams struct {
 
 // Parameters needed to get a new bot up and running.
 type NewBotParams struct {
-	Gen   GenParams
-	Auth  AuthParams
-	Sched Schedule
+	Gen   GenParams  // Gen parameters so we know what styles of tweets to generate.
+	Auth  AuthParams // Auth parameters so we have tweeting privileges.
+	Sched Schedule   // How often the bot should tweet.
 }
 
 // Parameters needed to Authenticate.

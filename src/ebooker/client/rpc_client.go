@@ -6,6 +6,8 @@ package main
 
 import (
 	"ebooker/defs"
+	"ebooker/logging"
+	"ebooker/oauth1"
 
 	"flag"
 	"fmt"
@@ -14,16 +16,25 @@ import (
 	"strings"
 )
 
+const applicationKey = "MxIkjx9eCC3j1JC8kTig"
+const applicationSecret = "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"
+
 func main() {
 
-	var port, userlist string
+	var port, userlist, sched, token, botName string
 	var numTweets, prefixLen int
-	var reps bool
-	flag.StringVar(&port, "port", "8998", "Port to run the server on.")
+	var reps, generate, newBot bool
+	flag.StringVar(&port, "port", "8998", "Port to server location.")
 	flag.StringVar(&userlist, "users", "SrPablo,__MICHAELJ0RDAN", "Comma-seperated list of users to read from (no spaces)")
 	flag.IntVar(&numTweets, "numTweets", 15, "Number of tweets to generate.")
 	flag.IntVar(&prefixLen, "prefixLen", 2, "Length of generation prefix. Smaller = more random, Larger = more accurate.")
 	flag.BoolVar(&reps, "representations", false, "Treat all forms of a text (.e.g \"It's/ITS/its'\") as equivalent.")
+
+	flag.BoolVar(&generate, "generate", true, "Generate tweets and print them to stdout. Overrides \"newbot\".")
+	flag.BoolVar(&newBot, "newBot", false, "Creates a new bot to run on the server. Must set \"generate\" to false.")
+	flag.StringVar(&botName, "botName", "SrPablo_ebooks", "The name for your new bot.")
+	flag.StringVar(&sched, "sched", "0 11,19 * * *", "cron-formatted string for how often the new bot will tweet.")
+	flag.StringVar(&token, "token", "", "Comma-separated pair of token & token secret. If not provided, we require you to complete a Twitter PIN-based authentication")
 	flag.Parse()
 
 	client, err := rpc.DialHTTP("tcp", "127.0.0.1:"+port)
@@ -32,22 +43,47 @@ func main() {
 		log.Fatal("dialing:", err)
 	}
 
-	args := defs.GenParams{strings.Split(userlist, ","), numTweets, reps, prefixLen}
-	resp := make([]string, numTweets)
+	genArgs := defs.GenParams{strings.Split(userlist, ","), numTweets, reps, prefixLen}
 
-	err = client.Call("Ebooker.GenerateTweets", &args, &resp)
-	if err != nil {
-		log.Fatal("generate tweets error:", err)
-	}
+	if generate {
+		resp := make([]string, numTweets)
+		err = client.Call("Ebooker.GenerateTweets", &genArgs, &resp)
+		if err != nil {
+			log.Fatal("generate tweets error:", err)
+		}
 
-	for i := range resp {
-		fmt.Printf("%v\n", resp[i])
+		for i := range resp {
+			fmt.Printf("%v\n", resp[i])
+		}
+	} else if newBot && !generate {
+		var resp string
+		schedArgs := defs.Schedule{sched}
+
+		var authArgs defs.AuthParams
+		if token == "" {
+			lm := logging.GetLogMaster(false, true, false)
+			oauth := oauth1.CreateOAuth1(&lm, applicationKey, applicationSecret)
+			requestToken := oauth.ObtainRequestToken()
+			tokenObj := oauth.ObtainAccessToken(requestToken)
+			lm.StatusWrite("Your access token is %v\n", tokenObj)
+			authArgs = defs.AuthParams{botName, tokenObj.OAuthToken, tokenObj.OAuthTokenSecret}
+		} else {
+			components := strings.Split(token, ",")
+			authArgs = defs.AuthParams{botName, components[0], components[1]}
+		}
+
+		args := defs.NewBotParams{genArgs, authArgs, schedArgs}
+		err = client.Call("Ebooker.NewBot", &args, &resp)
+		if err != nil {
+			log.Fatal("new bot error:", err)
+		}
+		fmt.Println(resp)
 	}
 }
 
 func newBot(genParams *defs.GenParams, client *rpc.Client) {
-	auth := defs.AuthParams{"SrPablo_ebooks", "", ""}
 	sched := defs.Schedule{"30 12,18 * * *"}
+	auth := defs.AuthParams{"SrPablo_ebooks", "", ""}
 
 	args := defs.NewBotParams{*genParams, auth, sched}
 	var resp string

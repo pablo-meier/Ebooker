@@ -110,7 +110,7 @@ func (eb *Ebooker) NewBot(args *defs.NewBotParams, out *string) error {
 		eb.data.insertUserAccessToken(user, token)
 	}
 
-	eb.logger.StatusWrite("Creating a generator...\n", user)
+	eb.logger.StatusWrite("Creating a generator...\n")
 	gen, err := eb.createSeededGenerator(&args.Gen)
 	if err != nil {
 		*out = "fail"

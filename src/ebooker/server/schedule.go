@@ -6,6 +6,7 @@ for specifying when, and how often.
 */
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -33,17 +34,20 @@ func (s *Schedule) next() time.Duration {
 
 // Isolated for testing.
 func (s *Schedule) nextFromTime(t time.Time) time.Duration {
-	d, _ := time.ParseDuration("12h")
+	d, _ := time.ParseDuration("6h")
 	return d
 }
 
 // start runs the schedule, having it send ticks at the times specified upon
 // creation.
 func (s *Schedule) start() {
+	fmt.Println("Start called!")
 	duration := s.next()
-
 	c := time.After(duration)
-	for _ = range c {
+
+	for {
+		<-c
+		fmt.Println("Entered loop!")
 		if s.shouldKill() {
 			break
 		}

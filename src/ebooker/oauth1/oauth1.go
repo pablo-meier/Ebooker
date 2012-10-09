@@ -75,7 +75,7 @@ func CreateOAuth1(l *logging.LogMaster, key, secret string) OAuth1 {
 
 // Gives us a request token to begin an OAuth exchange with Twitter.
 func (o OAuth1) ObtainRequestToken() *Token {
-	o.logger.DebugWrite("Making a a POST request for a request token...\n")
+	o.logger.DebugWrite("Making a POST request for a request token...\n")
 	url := REQUEST_TOKEN_URL
 	method := "POST"
 	urlParams := map[string]string{}
