@@ -1,12 +1,10 @@
-* Write a frontend "client" that serves like the current script does.
+* HTML DECODING ("&gt;")
+* RT/MT stripping?
 
-* Implement API!
-** Bots/Scheduling
-*** Start with a simple twice a day.
-*** No parsing, just a constant Schedule Object for twice a day.
+* Bots/Scheduling.
+* Monitoring/logging/admin of bots.
 
 * Proper server logging to files, etc.?
-* Deloy to a linode.
 
 * Another frontend is the webapp.
 

@@ -199,10 +199,11 @@ func (g *Generator) GenerateFromPrefix(prefix string) string {
 		}
 	} else {
 		result = append(result, prefix)
+		charLimit -= len(prefix)
 	}
 
 	for {
-		word, shouldTerminate, newPrefix, newCharLimit := g.PopNextWord(prefix, charLimit)
+		word, shouldTerminate, newPrefix, newCharLimit := g.popNextWord(prefix, charLimit)
 		prefix = newPrefix
 		charLimit = newCharLimit
 
@@ -217,7 +218,7 @@ func (g *Generator) GenerateFromPrefix(prefix string) string {
 	return strings.Join(result, " ")
 }
 
-func (g *Generator) PopNextWord(prefix string, limit int) (string, bool, string, int) {
+func (g *Generator) popNextWord(prefix string, limit int) (string, bool, string, int) {
 
 	csList, exists := g.Data[prefix]
 

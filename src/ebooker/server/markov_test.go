@@ -157,6 +157,23 @@ func (s MarkovSuite) TestGenerateText(c *gocheck.C) {
 	}
 }
 
+// Tweets have had > 140 characters... time to crack down on that.
+func (s MarkovSuite) TestCharacterLimit(c *gocheck.C) {
+	testCharLimit(140, c)
+	testCharLimit(100, c)
+	testCharLimit(30, c)
+	testCharLimit(200, c)
+}
+
+func testCharLimit(charLimit int, c *gocheck.C) {
+	gen := makeGenerator(2, charLimit)
+	gen.AddSeeds("Pavel isn't going to the ball tonight. DID YOU HEAR THAT? HE'S NOT GOING!!! Looks like he won't have a ball. Requires balls. Ball court. Court date. Date of entry. Entry wound.")
+
+	for i := 0; i < 20; i++ {
+		c.Assert(len(gen.GenerateText()) <= charLimit, gocheck.Equals, true)
+	}
+}
+
 func assertHasPrefix(aMap CountedStringMap, prefix string, c *gocheck.C) {
 	_, exists := aMap[prefix]
 	if !exists {
@@ -185,7 +202,7 @@ func assertProperFrequencyGeneration(g *Generator, prefix, suffix string, prob f
 	epsilon := float64(0.075)
 
 	for i := 0; i < trials; i++ {
-		nextWord, shouldTerminate, _, _ := g.PopNextWord(prefix, 100)
+		nextWord, shouldTerminate, _, _ := g.popNextWord(prefix, 100)
 		c.Assert(shouldTerminate, gocheck.Equals, false)
 		if suffix == nextWord {
 			hits++

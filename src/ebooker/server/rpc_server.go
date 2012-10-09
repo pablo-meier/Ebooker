@@ -65,7 +65,7 @@ func main() {
 	tf := getTweetFetcher(&logger, &oauth1)
 
 	logger.StatusWrite("Welcome to EBOOKER -- let's make some nonsense ^_^\n")
-	logger.StatusWrite("Registering Ebooker RPC..\n")
+	logger.StatusWrite("Registering Ebooker RPC...\n")
 	eb := Ebooker{&logger, &dh, &oauth1, &tf}
 	rpc.Register(&eb)
 	rpc.HandleHTTP()
