@@ -23,7 +23,7 @@ func main() {
 
 	var port, userlist, sched, token, botName string
 	var numTweets, prefixLen int
-	var reps, generate, newBot bool
+	var reps, generate, newBot, cancel, del, list bool
 	flag.StringVar(&port, "port", "8998", "Port to server location.")
 	flag.StringVar(&userlist, "users", "SrPablo,__MICHAELJ0RDAN", "Comma-seperated list of users to read from (no spaces)")
 	flag.IntVar(&numTweets, "numTweets", 15, "Number of tweets to generate.")
@@ -35,6 +35,10 @@ func main() {
 	flag.StringVar(&botName, "botName", "SrPablo_ebooks", "The name for your new bot.")
 	flag.StringVar(&sched, "sched", "0 11,19 * * *", "cron-formatted string for how often the new bot will tweet.")
 	flag.StringVar(&token, "token", "", "Comma-separated pair of token & token secret. If not provided, we require you to complete a Twitter PIN-based authentication")
+
+	flag.BoolVar(&cancel, "cancelBot", false, "Must be used with botName -- sets the named bot to no longer tweet.")
+	flag.BoolVar(&del, "deleteBot", false, "Must be used with botName -- removes the bot entirely from the server.")
+	flag.BoolVar(&list, "listBots", false, "Prints a list of all the bots on this server")
 	flag.Parse()
 
 	client, err := rpc.DialHTTP("tcp", "127.0.0.1:"+port)
@@ -78,6 +82,27 @@ func main() {
 			log.Fatal("new bot error:", err)
 		}
 		fmt.Println(resp)
+	} else if !generate && list {
+		var toPrint []string
+		err := client.Call("Ebooker.ListBots", "", &toPrint)
+		if err != nil {
+			log.Fatal("listBots error:", err)
+		}
+		fmt.Println(toPrint)
+	} else if !generate && cancel {
+		var msg string
+		err := client.Call("Ebooker.CancelBot", botName, &msg)
+		if err != nil {
+			log.Fatal("cancelBot error:", err)
+		}
+		fmt.Println(msg)
+	} else if !generate && del {
+		var msg string
+		err := client.Call("Ebooker.DeleteBot", botName, &msg)
+		if err != nil {
+			log.Fatal("deleteBot error:", err)
+		}
+		fmt.Println(msg)
 	}
 }
 

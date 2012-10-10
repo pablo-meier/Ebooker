@@ -1,24 +1,22 @@
-* RT/MT stripping?
-
 * Bots/Scheduling.
+* Bot persistence.
 * Monitoring/logging/admin of bots.
-
 * Proper server logging to files, etc.?
 
-* Another frontend is the webapp.
 
 API
 ===
 
 GenerateTweets(genParams) : []string
 GenerateWithAuthorization(genParams, authParams) : []string
-
 CreateNewBot(name, authParams, genparams, schedule) : "Next time is..."
 ListBots() : []string
-SetBotSchedule(name, schedule) : "Next time is..."
-ListBotSchedule(name) : "Next time is..."
 CancelBot(name) : "<name> cancelled."
 DeleteBot(name) : "<name> gone!"
+
+ListBotSchedule(name) : "Next time is..."
+SetBotSchedule(name, schedule) : "Next time is..."
+StartBot(name) : "Next time is..."
 
 ProvideCredentials(name, authparams) : "Name -> Token"
 
@@ -40,14 +38,13 @@ Critical
 ** needless call-by-value causing copying? Where are we slow?
 
 * FEATURE QUALITY
-* Length of tweets is bad, often goes over.
-* Ensure no direct subsets?
-* HTML encoding needs to be undone, e.g. "&gt;" -> ">"
+** Ensure no direct subsets?
 
 
 Features
 --------
-* Persistent storage of Generators? Custom binary format?
+* Webapp frontend.
+* Persistent storage of Generators/bots/tweets? Custom binary format?
 ----
 * "Sweeps," a set of filters that you can apply to the text, 
 ** Capitalization.
@@ -64,3 +61,5 @@ Features
      weird-as-hell as possible).
 ----
 * "Real" Database backend, like Postgres?
+
+* RT/MT stripping?

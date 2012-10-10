@@ -16,26 +16,19 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"strings"
 	"time"
 )
 
 // Ebooker is the provider of the service, and maintains its internal resources
 // in this struct.
 type Ebooker struct {
+	bots map[string]*Bot
+
 	logger *logging.LogMaster
 	data   *DataHandle
 	oauth  *oauth1.OAuth1
 	tf     *TweetFetcher
-}
-
-type Bot struct {
-	username string
-	sources  []string
-	gen      *Generator
-	token    *oauth1.Token
-	sched    *Schedule
-
-	ebooker *Ebooker
 }
 
 const DEFAULT_USER = "SrPablo"
@@ -45,11 +38,9 @@ const applicationSecret = "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"
 
 // Starts the service
 func main() {
-
-	//	var silent bool
-	var debug, timestamps bool
+	var debug, timestamps, silent bool
 	var port string
-	//	flag.BoolVar(&silent, "silent", true, "Generate only the tweets, without other status information.")
+	flag.BoolVar(&silent, "silent", false, "Generate only the tweets, without other status information.")
 	flag.BoolVar(&debug, "debug", false, "Print debugging information.")
 	flag.BoolVar(&timestamps, "timestamps", false, "Print log/debug with timestamps.")
 	flag.StringVar(&port, "port", "8998", "Port to run the server on.")
@@ -58,15 +49,17 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	// Silent default to false, since there isn't really an aesthetic need to do so
-	logger := logging.GetLogMaster(false, debug, timestamps)
+	logger := logging.GetLogMaster(silent, debug, timestamps)
 	dh := getDataHandle("./ebooker_tweets.db", &logger)
 	defer dh.Cleanup()
 	oauth1 := oauth1.CreateOAuth1(&logger, applicationKey, applicationSecret)
 	tf := getTweetFetcher(&logger, &oauth1)
+	bots := make(map[string]*Bot)
 
 	logger.StatusWrite("Welcome to EBOOKER -- let's make some nonsense ^_^\n")
 	logger.StatusWrite("Registering Ebooker RPC...\n")
-	eb := Ebooker{&logger, &dh, &oauth1, &tf}
+
+	eb := Ebooker{bots, &logger, &dh, &oauth1, &tf}
 	rpc.Register(&eb)
 	rpc.HandleHTTP()
 
@@ -119,49 +112,60 @@ func (eb *Ebooker) NewBot(args *defs.NewBotParams, out *string) error {
 	}
 
 	schedule := cronParse(args.Sched.Cron)
-	bot := Bot{user, args.Gen.Users, gen, token, &schedule, eb}
+	bot := Bot{user, args.Gen.Users, gen, token, &schedule,
+		eb.logger, eb.data, eb.oauth, eb.tf}
+
+	eb.bots[user] = &bot
 	*out = "The next tweet will arrive at: " + schedule.next().String()
 	eb.logger.StatusWrite("Bot created! %s\n", *out)
 	go bot.Run()
 	return nil
 }
 
-// Runs perpetually, forever tweeting
-func (b *Bot) Run() {
-	b.ebooker.logger.StatusWrite("Bot %s ordered to run! Away we go!\n", b.username)
+// Lists the bots this Ebooker server is running.
+func (eb *Ebooker) ListBots(_ string, out *[]string) error {
 
-	c := b.sched.tickingChannel()
-	for _ = range c {
-		if b.sched.shouldKill() {
-			b.ebooker.logger.StatusWrite("Bot %s received killing order! Dying...\n", b.username)
-			break
-		}
-		b.ebooker.logger.StatusWrite("At %v bot %s received the order to tweet.\n", time.Now(), b.username)
-
-		// Update Sources
-		newSources := b.ebooker.fetchNewSources(b.sources, b.token)
-
-		// Add new seeds to generator.
-		for _, val := range newSources {
-			b.gen.AddSeeds(val)
-		}
-
-		// fire off the new tweet
-		message := b.gen.GenerateText()
-		b.ebooker.logger.StatusWrite("Sending \"%s\"\n", message)
-		b.ebooker.tf.sendTweet(message, b.token)
-		b.ebooker.logger.StatusWrite("Success! Next tweet due after %v\n", b.sched.next().String())
+	for k, v := range eb.bots {
+		botstring := k + ":" + strings.Join(v.sources, ",")
+		*out = append(*out, botstring)
 	}
+
+	return nil
 }
 
-func (b *Bot) Kill() {
-	b.sched.kill()
+// Cancels this bot, preventing it from tweeting.
+func (eb *Ebooker) CancelBot(name string, out *string) error {
+
+	bot, exists := eb.bots[name]
+	if !exists {
+		*out = ""
+		return errors.New("No bot found for that name.")
+	}
+
+	bot.Kill()
+	*out = name + " now inactive. You can always start it up again later ^_^"
+	return nil
+}
+
+// Cancels this bot, preventing it from tweeting.
+func (eb *Ebooker) DeleteBot(name string, out *string) error {
+
+	bot, exists := eb.bots[name]
+	if !exists {
+		*out = ""
+		return errors.New("No bot found for that name.")
+	}
+
+	bot.Kill()
+	delete(eb.bots, name)
+	*out = name + " gone!"
+	return nil
 }
 
 func (eb *Ebooker) createSeededGenerator(args *defs.GenParams) (*Generator, error) {
 
 	token := eb.getAccessToken(DEFAULT_USER)
-	sourcestrings := eb.fetchNewSources(args.Users, token)
+	sourcestrings := fetchNewSources(args.Users, token, eb.data, eb.logger, eb.tf)
 
 	if len(sourcestrings) == 0 {
 		eb.logger.StatusWrite("Can't write nonsense tweets, as we don't have a corpus!\n")
@@ -183,27 +187,34 @@ func (eb *Ebooker) createSeededGenerator(args *defs.GenParams) (*Generator, erro
 	return gen, nil
 }
 
-func (eb *Ebooker) fetchNewSources(userlist []string, token *oauth1.Token) []string {
+// fetchNewSources will check the Twitter API for new tweets by 'sources,' using the
+// authentication from 'token.' Note that we'd like this to be a member function of some
+// struct interface "ResourceHolder," but Goobuntu + GBus Wifi are so craptacularly out
+// of sync that I have to do this one offline, and can't look up whether we could even
+// attach an implementation to an interface in Go, or what that would look like.
+//
+// Feel my first 'rants' email coming along...
+func fetchNewSources(userlist []string, token *oauth1.Token, data *DataHandle, logger *logging.LogMaster, tf *TweetFetcher) []string {
 
 	var sourcestrings []string
 	for _, username := range userlist {
 		// get tweets from persistent storage
-		eb.logger.StatusWrite("Reading from persistent storage for %s...\n", username)
-		oldTweets := eb.data.GetTweetsFromStorage(username)
+		logger.StatusWrite("Reading from persistent storage for %s...\n", username)
+		oldTweets := data.GetTweetsFromStorage(username)
 
 		var newTweets Tweets
 		if len(oldTweets) == 0 {
-			eb.logger.StatusWrite("Found no tweets for %s, doing a deep dive to retrieve their history.\n", username)
-			newTweets = eb.tf.DeepDive(username, token)
+			logger.StatusWrite("Found no tweets for %s, doing a deep dive to retrieve their history.\n", username)
+			newTweets = tf.DeepDive(username, token)
 		} else {
-			eb.logger.StatusWrite("Found %d tweets for %s.\n", len(oldTweets), username)
+			logger.StatusWrite("Found %d tweets for %s.\n", len(oldTweets), username)
 			newest := oldTweets[len(oldTweets)-1]
-			newTweets = eb.tf.GetRecentTimeline(username, &newest, token)
+			newTweets = tf.GetRecentTimeline(username, &newest, token)
 		}
 
 		// update the persistent storage
-		eb.logger.StatusWrite("Inserting %d new tweets into persistent storage.\n", len(newTweets))
-		eb.data.InsertFreshTweets(username, newTweets)
+		logger.StatusWrite("Inserting %d new tweets into persistent storage.\n", len(newTweets))
+		data.InsertFreshTweets(username, newTweets)
 
 		copyFrom(&sourcestrings, &oldTweets)
 		copyFrom(&sourcestrings, &newTweets)
