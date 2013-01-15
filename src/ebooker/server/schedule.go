@@ -34,8 +34,8 @@ func (s *Schedule) next() time.Duration {
 
 // Isolated for testing.
 func (s *Schedule) nextFromTime(t time.Time) time.Duration {
-	//	d, _ := time.ParseDuration("6s")
-	d, _ := time.ParseDuration("3h")
+//		d, _ := time.ParseDuration("6s")
+	d, _ := time.ParseDuration("11h")
 	return d
 }
 
