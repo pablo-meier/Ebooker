@@ -1,0 +1,8 @@
+# Use this space to store your Twitter keys. While 'Ebooker' has their
+# own I'd like to keep them separate from the source.
+#
+# Shell comments are ignored. Fill in your own values here. These
+# are garbage (revoked keys).
+
+Consumer Key = MxIkjx9eCC3j1JC8kTig
+Consumer Secret = IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0

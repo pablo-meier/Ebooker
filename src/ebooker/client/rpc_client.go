@@ -16,12 +16,9 @@ import (
 	"strings"
 )
 
-const applicationKey = "MxIkjx9eCC3j1JC8kTig"
-const applicationSecret = "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"
-
 func main() {
 
-	var port, userlist, sched, token, botName string
+	var port, userlist, sched, token, botName, keyFile string
 	var numTweets, prefixLen int
 	var reps, generate, newBot, cancel, del, list bool
 	flag.StringVar(&port, "port", "8998", "Port to server location.")
@@ -33,8 +30,9 @@ func main() {
 	flag.BoolVar(&generate, "generate", true, "Generate tweets and print them to stdout. Overrides \"newbot\".")
 	flag.BoolVar(&newBot, "newBot", false, "Creates a new bot to run on the server. Must set \"generate\" to false.")
 	flag.StringVar(&botName, "botName", "SrPablo_ebooks", "The name for your new bot.")
-	flag.StringVar(&sched, "sched", "0 11,19 * * *", "cron-formatted string for how often the new bot will tweet.")
+	flag.StringVar(&sched, "sched", "0 11,19 * * *", "cron-formatted string for how often the new bot will tweet. NOT IMPLEMENTED.")
 	flag.StringVar(&token, "token", "", "Comma-separated pair of token & token secret. If not provided, we require you to complete a Twitter PIN-based authentication")
+	flag.StringVar(&keyFile, "keyfile", "keys.txt", "File containing the application keys assigned to you by Twitter.")
 
 	flag.BoolVar(&cancel, "cancelBot", false, "Must be used with botName -- sets the named bot to no longer tweet.")
 	flag.BoolVar(&del, "deleteBot", false, "Must be used with botName -- removes the bot entirely from the server.")
@@ -66,6 +64,7 @@ func main() {
 		var authArgs defs.AuthParams
 		if token == "" {
 			lm := logging.GetLogMaster(false, true, false)
+			applicationKey, applicationSecret := oauth1.ParseFromFile(keyFile)
 			oauth := oauth1.CreateOAuth1(&lm, applicationKey, applicationSecret)
 			requestToken := oauth.ObtainRequestToken()
 			tokenObj := oauth.ObtainAccessToken(requestToken)

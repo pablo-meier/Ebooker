@@ -33,17 +33,15 @@ type Ebooker struct {
 
 const DEFAULT_USER = "SrPablo"
 
-const applicationKey = "MxIkjx9eCC3j1JC8kTig"
-const applicationSecret = "IgOkwoh5m7AS4LplszxcPaF881vjvZYZNCAvvUz1x0"
-
 // Starts the service
 func main() {
 	var debug, timestamps, silent bool
-	var port string
+	var port, keyFile string
 	flag.BoolVar(&silent, "silent", false, "Generate only the tweets, without other status information.")
 	flag.BoolVar(&debug, "debug", false, "Print debugging information.")
 	flag.BoolVar(&timestamps, "timestamps", false, "Print log/debug with timestamps.")
 	flag.StringVar(&port, "port", "8998", "Port to run the server on.")
+	flag.StringVar(&keyFile, "keyfile", "keys.txt", "File containing the application keys assigned to you by Twitter.")
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
@@ -52,6 +50,7 @@ func main() {
 	logger := logging.GetLogMaster(silent, debug, timestamps)
 	dh := getDataHandle("./ebooker_tweets.db", &logger)
 	defer dh.Cleanup()
+	applicationKey, applicationSecret := oauth1.ParseFromFile(keyFile)
 	oauth1 := oauth1.CreateOAuth1(&logger, applicationKey, applicationSecret)
 	tf := getTweetFetcher(&logger, &oauth1)
 	bots := make(map[string]*Bot)
