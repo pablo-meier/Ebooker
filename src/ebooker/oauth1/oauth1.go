@@ -73,6 +73,11 @@ func CreateOAuth1(l *logging.LogMaster, key, secret string) OAuth1 {
 	return OAuth1{l, key, secret}
 }
 
+// Return a Token based on the application's credentials.
+func (o OAuth1) MakeToken() *Token {
+	return &Token{o.applicationKey, o.applicationSecret}
+}
+
 // Gives us a request token to begin an OAuth exchange with Twitter.
 func (o OAuth1) ObtainRequestToken() *Token {
 	o.logger.DebugWrite("Making a POST request for a request token...\n")

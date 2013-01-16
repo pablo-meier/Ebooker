@@ -163,8 +163,8 @@ func (eb *Ebooker) DeleteBot(name string, out *string) error {
 
 func (eb *Ebooker) createSeededGenerator(args *defs.GenParams) (*Generator, error) {
 
-	token := eb.getAccessToken(DEFAULT_USER)
-	sourcestrings := fetchNewSources(args.Users, token, eb.data, eb.logger, eb.tf)
+	appToken := eb.oauth.MakeToken()
+	sourcestrings := fetchNewSources(args.Users, appToken, eb.data, eb.logger, eb.tf)
 
 	if len(sourcestrings) == 0 {
 		eb.logger.StatusWrite("Can't write nonsense tweets, as we don't have a corpus!\n")
