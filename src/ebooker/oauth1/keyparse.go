@@ -9,12 +9,12 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"regexp"
 	"os"
+	"regexp"
 )
 
 const (
-	KEY_PATTERN = "^Consumer Key ?= ?(.+)"
+	KEY_PATTERN    = "^Consumer Key ?= ?(.+)"
 	SECRET_PATTERN = "^Consumer Secret ?= ?(.+)"
 )
 
@@ -56,7 +56,7 @@ func ParseFromFile(filename string) (string, string) {
 	}
 
 	if len(consumerKey) == 0 || len(consumerSecret) == 0 {
-		fmt.Printf("File %v doesn't contain appropriate key format. Should contain\n" +
+		fmt.Printf("File %v doesn't contain appropriate key format. Should contain\n"+
 			"Consumer Key = <key>\nConsumer Secret = <secret>\n", filename)
 	}
 

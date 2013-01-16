@@ -15,6 +15,7 @@ fmt:
 	go fmt ebooker/logging
 	go fmt ebooker/oauth1
 	find src -name "*.go" -exec sed -i 's/[ \t]*$$//' \{\} \;
+	sed -i 's/[ \t]*$$//' README.markdown
 
 
 test:
