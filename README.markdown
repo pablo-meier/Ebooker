@@ -4,8 +4,8 @@ Ebooker
 Your way to abstract poetry stardom!
 
 Ebooker is a service that will consume a Twitter stream and generate new text
-based on a Markov model of randomization. This is nothing new: most people
-speculate @horse\_ebooks came about this way (but I'm a believer it's just
+using Markov chains based on the text. This is nothing new: most people
+speculate [@horse\_ebooks][15] came about this way (but I'm a believer it's just
 Markov-assisted and not truly botty). Excellent examples of Markov-based Twitter
 accounts are [@kpich\_ebooks][4], [@RandomTEDTalks][3], and [@markov\_bible][5].
 
@@ -19,7 +19,7 @@ Implemented in [Go][2], because the gopher is cute and I was curious.
 Dependencies
 ============
 
-* sqlite3
+* [sqlite3][16]
 
 That's pretty much it. We use it to store tweets and OAuth tokens.
 
@@ -27,7 +27,7 @@ That's pretty much it. We use it to store tweets and OAuth tokens.
 ====================
 
 Running `make` (and assuming the project root is in your `$GOPATH`) will
-generate two binaries: `ebooker\_server` and `ebooker\_client`. Both, when run
+generate two binaries: `ebooker_server` and `ebooker_client`. Both, when run
 with `--help`, will list their flags.
 
 The server is what does all the work: it retrieves tweets from Twitter,
@@ -43,7 +43,7 @@ business altogether.
 Should I use this to learn Go?
 ==============================
 
-Probably not! There are a few major faux pas that I note, not that it's been a
+Probably not! There are a few major faux pas that I note, now that it's been a
 few months. Just like [ScrabbleCheat][6] has elements of "Baby's First Erlang,"
 this smacks of Baby's First Go. Notably:
 
@@ -95,3 +95,5 @@ directly.
    [12]: http://twitter.com/SrLaurelita
    [13]: http://twitter.com/love_that_lita
    [14]: http://twitter.com/love_that_goku
+   [15]: http://twitter.com/horse_ebooks
+   [16]: http://www.sqlite.org/
