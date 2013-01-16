@@ -62,6 +62,14 @@ this smacks of Baby's First Go. Notably:
 * I only tested what needed testing. Fail code coverage, test-first, etc. I'm
   obviously crying every night over this.
 
+Bots powered by Ebooker
+=======================
+
+* [SrPablo\_ebooks][8] Modeled after [my Twitter account.][9]
+* [laurelita\_ebook][10] Modeled after [my girlfriend's.][11]
+* [SrLaurelita][12] Modeled after both of ours.
+* [love\_that\_lita][13] Modeled after @laurelita and [@love\_that\_goku][14]
+
 Anything else?
 ==============
 
@@ -80,3 +88,10 @@ directly.
    [4]: http://twitter.com/kpich_ebooks
    [5]: http://twitter.com/markov_bible
    [6]: http://www.youtube.com/watch?v=6WJFjXtHcy4
+   [8]: http://twitter.com/SrPablo_ebooks
+   [9]: http://twitter.com/SrPablo
+   [10]: http://twitter.com/laurelita_ebook
+   [11]: http://twitter.com/laurelita
+   [12]: http://twitter.com/SrLaurelita
+   [13]: http://twitter.com/love_that_lita
+   [14]: http://twitter.com/love_that_goku
