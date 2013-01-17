@@ -16,7 +16,7 @@ import (
 // are effectively replies but designed to be seen publicly, such as ".@walmart
 // what happens when u die?"
 func StripReply(str string) string {
-	replyCheck, _ := regexp.Compile("^(?:\\s*\\.)?(\\s*@[a-zA-Z0-9_=]+\\s*)")
+	replyCheck, _ := regexp.Compile("^(?:\\s*\\.)?(\\s*@[a-zA-Z0-9_=]+\\s*)+")
 	return removePattern(str, replyCheck)
 }
 
