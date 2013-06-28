@@ -45,7 +45,21 @@ func main() {
 		log.Fatal("dialing:", err)
 	}
 
-	genArgs := defs.GenParams{strings.Split(userlist, ","), numTweets, reps, prefixLen}
+	var authArgs defs.AuthParams
+	if token == "" {
+		lm := logging.GetLogMaster(false, true, false)
+		applicationKey, applicationSecret := oauth1.ParseFromFile(keyFile)
+		oauth := oauth1.CreateOAuth1(&lm, applicationKey, applicationSecret)
+		requestToken := oauth.ObtainRequestToken()
+		tokenObj := oauth.ObtainAccessToken(requestToken)
+		lm.StatusWrite("Your access token is %v\n", tokenObj)
+		authArgs = defs.AuthParams{botName, tokenObj.OAuthToken, tokenObj.OAuthTokenSecret}
+	} else {
+		components := strings.Split(token, ",")
+		authArgs = defs.AuthParams{botName, components[0], components[1]}
+	}
+
+	genArgs := defs.GenParams{strings.Split(userlist, ","), numTweets, reps, prefixLen, authArgs}
 
 	if generate {
 		resp := make([]string, numTweets)
@@ -60,20 +74,6 @@ func main() {
 	} else if newBot && !generate {
 		var resp string
 		schedArgs := defs.Schedule{sched}
-
-		var authArgs defs.AuthParams
-		if token == "" {
-			lm := logging.GetLogMaster(false, true, false)
-			applicationKey, applicationSecret := oauth1.ParseFromFile(keyFile)
-			oauth := oauth1.CreateOAuth1(&lm, applicationKey, applicationSecret)
-			requestToken := oauth.ObtainRequestToken()
-			tokenObj := oauth.ObtainAccessToken(requestToken)
-			lm.StatusWrite("Your access token is %v\n", tokenObj)
-			authArgs = defs.AuthParams{botName, tokenObj.OAuthToken, tokenObj.OAuthTokenSecret}
-		} else {
-			components := strings.Split(token, ",")
-			authArgs = defs.AuthParams{botName, components[0], components[1]}
-		}
 
 		args := defs.NewBotParams{genArgs, authArgs, schedArgs}
 		err = client.Call("Ebooker.NewBot", &args, &resp)

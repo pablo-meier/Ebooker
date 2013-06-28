@@ -11,6 +11,7 @@ type GenParams struct {
 	NumTweets int      // The number of tweets to generate.
 	Reps      bool     // Whether all variations of text (e.g. "ITS/it's/It's") are treated as equivalent
 	PrefixLen int      // Length of generation prefix. Smaller = more random, Larger = more accurate.
+	Auth AuthParams    // Twitter 1.1 API requires user_timeline be Authorized ;_;
 }
 
 // Parameters needed to get a new bot up and running.

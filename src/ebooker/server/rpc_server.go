@@ -163,8 +163,8 @@ func (eb *Ebooker) DeleteBot(name string, out *string) error {
 
 func (eb *Ebooker) createSeededGenerator(args *defs.GenParams) (*Generator, error) {
 
-	appToken := eb.oauth.MakeToken()
-	sourcestrings := fetchNewSources(args.Users, appToken, eb.data, eb.logger, eb.tf)
+	userToken := &oauth1.Token{args.Auth.Token, args.Auth.TokenSecret}
+	sourcestrings := fetchNewSources(args.Users, userToken, eb.data, eb.logger, eb.tf)
 
 	if len(sourcestrings) == 0 {
 		eb.logger.StatusWrite("Can't write nonsense tweets, as we don't have a corpus!\n")
@@ -193,7 +193,7 @@ func (eb *Ebooker) createSeededGenerator(args *defs.GenParams) (*Generator, erro
 // attach an implementation to an interface in Go, or what that would look like.
 //
 // Feel my first 'rants' email coming along...
-func fetchNewSources(userlist []string, token *oauth1.Token, data *DataHandle, logger *logging.LogMaster, tf *TweetFetcher) []string {
+func fetchNewSources(userlist []string, userToken *oauth1.Token, data *DataHandle, logger *logging.LogMaster, tf *TweetFetcher) []string {
 
 	var sourcestrings []string
 	for _, username := range userlist {
@@ -204,11 +204,11 @@ func fetchNewSources(userlist []string, token *oauth1.Token, data *DataHandle, l
 		var newTweets Tweets
 		if len(oldTweets) == 0 {
 			logger.StatusWrite("Found no tweets for %s, doing a deep dive to retrieve their history.\n", username)
-			newTweets = tf.DeepDive(username, token)
+			newTweets = tf.DeepDive(username, userToken)
 		} else {
 			logger.StatusWrite("Found %d tweets for %s.\n", len(oldTweets), username)
 			newest := oldTweets[len(oldTweets)-1]
-			newTweets = tf.GetRecentTimeline(username, &newest, token)
+			newTweets = tf.GetRecentTimeline(username, &newest, userToken)
 		}
 
 		// update the persistent storage

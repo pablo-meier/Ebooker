@@ -34,7 +34,7 @@ func (t Tweets) Len() int           { return len(t) }
 func (t Tweets) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t Tweets) Less(i, j int) bool { return t[i].Id < t[j].Id }
 
-const USER_TIMELINE_URL = "http://api.twitter.com/1/statuses/user_timeline.json"
+const USER_TIMELINE_URL = "https://api.twitter.com/1.1/statuses/user_timeline.json"
 const UPDATE_STATUS_URL = "https://api.twitter.com/1.1/statuses/update.json"
 
 func getTweetFetcher(logger *logging.LogMaster, oauth *oauth1.OAuth1) TweetFetcher {
