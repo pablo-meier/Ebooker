@@ -299,7 +299,7 @@ func (o *OAuth1) finishHeader(req *http.Request, authParams map[string]string) {
 
 func (o OAuth1) ExecuteRequest(req *http.Request) *http.Response {
 	client := &http.Client{}
-	req.Write(os.Stdout)
+//	req.Write(os.Stdout)
 	resp, err := client.Do(req)
 	if err != nil || resp == nil {
 		o.logger.StatusWrite("Error executing POST request: %v\n", err)
